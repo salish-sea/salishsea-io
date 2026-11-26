@@ -1,0 +1,311 @@
+{
+ "data": [
+  {
+   "attributes": {
+    "candidate_id": "cand_0352rrx8VKnHFycZxfBfdX",
+    "category": "vessel",
+    "feed_id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+    "idempotency_key": null,
+    "listener_count": 1,
+    "source": "human",
+    "timestamp": "2026-11-24T00:56:28.000000Z",
+    "visible": true
+   },
+   "id": "det_0352rrx4JUOnWL40Edotc5",
+   "links": {},
+   "meta": {},
+   "type": "detection",
+   "relationships": {
+    "candidate": {
+     "links": {},
+     "meta": {}
+    },
+    "feed": {
+     "data": {
+      "id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+      "type": "feed"
+     },
+     "links": {},
+     "meta": {}
+    }
+   }
+  },
+  {
+   "attributes": {
+    "candidate_id": "cand_03532XCdOOQe8gP4PEm6bq",
+    "category": "whale",
+    "feed_id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+    "idempotency_key": null,
+    "listener_count": 1,
+    "source": "human",
+    "timestamp": "2026-11-24T08:11:00.000000Z",
+    "visible": false
+   },
+   "id": "det_03532XCYoDONefXIHiNfh7",
+   "links": {},
+   "meta": {},
+   "type": "detection",
+   "relationships": {
+    "candidate": {
+     "links": {},
+     "meta": {}
+    },
+    "feed": {
+     "data": {
+      "id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+      "type": "feed"
+     },
+     "links": {},
+     "meta": {}
+    }
+   }
+  },
+  {
+   "attributes": {
+    "candidate_id": "cand_03537d1IfA3uglS1IL7UMM",
+    "category": "whale",
+    "feed_id": "feed_02u8r4EPgmlYQmh6gzlGIL",
+    "idempotency_key": "9e645e74-ae8d-4162-ab6b-953c0a62f473",
+    "listener_count": 0,
+    "source": "machine",
+    "timestamp": "2026-11-24T11:37:50.000000Z",
+    "visible": true
+   },
+   "id": "det_03537d10d53lSb37XmSEZp",
+   "links": {},
+   "meta": {},
+   "type": "detection",
+   "relationships": {
+    "candidate": {
+     "links": {},
+     "meta": {}
+    },
+    "feed": {
+     "data": {
+      "id": "feed_02u8r4EPgmlYQmh6gzlGIL",
+      "type": "feed"
+     },
+     "links": {},
+     "meta": {}
+    }
+   }
+  },
+  {
+   "attributes": {
+    "candidate_id": "cand_0353F5mO5IEcZdL1LnN3f0",
+    "category": "whale",
+    "feed_id": "feed_02y0cKla21bfTG7d8DQgPl",
+    "idempotency_key": "0eb7ac31-fa38-4735-87e8-a29c5b43a1fd",
+    "listener_count": 0,
+    "source": "machine",
+    "timestamp": "2026-11-24T16:41:25.000000Z",
+    "visible": true
+   },
+   "id": "det_0353F5mLqE4BVbxMeAY1l2",
+   "links": {},
+   "meta": {},
+   "type": "detection",
+   "relationships": {
+    "candidate": {
+     "links": {},
+     "meta": {}
+    },
+    "feed": {
+     "data": {
+      "id": "feed_02y0cKla21bfTG7d8DQgPl",
+      "type": "feed"
+     },
+     "links": {},
+     "meta": {}
+    }
+   }
+  },
+  {
+   "attributes": {
+    "candidate_id": "cand_0353KuOEoFQrMRp1zC8Ry6",
+    "category": "whale",
+    "feed_id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+    "idempotency_key": "b782f093-5acc-4d0e-b1b1-718e794b1c38",
+    "listener_count": 0,
+    "source": "machine",
+    "timestamp": "2026-11-24T20:38:28.000000Z",
+    "visible": true
+   },
+   "id": "det_0353KuO9LYA6C9gRrQs3Wm",
+   "links": {},
+   "meta": {},
+   "type": "detection",
+   "relationships": {
+    "candidate": {
+     "links": {},
+     "meta": {}
+    },
+    "feed": {
+     "data": {
+      "id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+      "type": "feed"
+     },
+     "links": {},
+     "meta": {}
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "attributes": {
+    "location_point": {
+     "coordinates": [
+      -122.6040035,
+      48.0336664
+     ],
+     "crs": {
+      "properties": {
+       "name": "EPSG:4326"
+      },
+      "type": "name"
+     },
+     "type": "Point"
+    },
+    "name": "Bush Point"
+   },
+   "id": "feed_02u8r4EOo8cuSHdC7xDqMI",
+   "links": {},
+   "meta": {},
+   "type": "feed",
+   "relationships": {
+    "feed_segments": {
+     "links": {},
+     "meta": {}
+    },
+    "feed_streams": {
+     "links": {},
+     "meta": {}
+    },
+    "listener_counts": {
+     "links": {},
+     "meta": {}
+    },
+    "latest_listener_count": {
+     "links": {},
+     "meta": {}
+    },
+    "audio_images": {
+     "links": {},
+     "meta": {}
+    },
+    "bouts": {
+     "links": {},
+     "meta": {}
+    }
+   }
+  },
+  {
+   "attributes": {
+    "location_point": {
+     "coordinates": [
+      -122.33393605795372,
+      47.86497296593844
+     ],
+     "crs": {
+      "properties": {
+       "name": "EPSG:4326"
+      },
+      "type": "name"
+     },
+     "type": "Point"
+    },
+    "name": "Beach Camp at Sunset Bay"
+   },
+   "id": "feed_02u8r4EPgmlYQmh6gzlGIL",
+   "links": {},
+   "meta": {},
+   "type": "feed",
+   "relationships": {
+    "feed_segments": {
+     "links": {},
+     "meta": {}
+    },
+    "feed_streams": {
+     "links": {},
+     "meta": {}
+    },
+    "listener_counts": {
+     "links": {},
+     "meta": {}
+    },
+    "latest_listener_count": {
+     "links": {},
+     "meta": {}
+    },
+    "audio_images": {
+     "links": {},
+     "meta": {}
+    },
+    "bouts": {
+     "links": {},
+     "meta": {}
+    }
+   }
+  },
+  {
+   "attributes": {
+    "location_point": {
+     "coordinates": [
+      -123.166408,
+      48.546653
+     ],
+     "crs": {
+      "properties": {
+       "name": "EPSG:4326"
+      },
+      "type": "name"
+     },
+     "type": "Point"
+    },
+    "name": "Andrews Bay"
+   },
+   "id": "feed_02y0cKla21bfTG7d8DQgPl",
+   "links": {},
+   "meta": {},
+   "type": "feed",
+   "relationships": {
+    "feed_segments": {
+     "links": {},
+     "meta": {}
+    },
+    "feed_streams": {
+     "links": {},
+     "meta": {}
+    },
+    "listener_counts": {
+     "links": {},
+     "meta": {}
+    },
+    "latest_listener_count": {
+     "links": {},
+     "meta": {}
+    },
+    "audio_images": {
+     "links": {},
+     "meta": {}
+    },
+    "bouts": {
+     "links": {},
+     "meta": {}
+    }
+   }
+  }
+ ],
+ "links": {
+  "self": "https://live.orcasound.net/api/json/detections?page[limit]=250&page[count]=true",
+  "next": null
+ },
+ "meta": {
+  "page": {
+   "offset": 0,
+   "total": 5,
+   "limit": 250
+  }
+ }
+}

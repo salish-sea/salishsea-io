@@ -1,0 +1,268 @@
+[
+ {
+  "id": "0eb7ac31-fa38-4735-87e8-a29c5b43a1fd",
+  "modelId": "davethaler/whale-call-detector",
+  "aiModel": "PODS-AI",
+  "timestamp": "2026-11-24T16:40:55Z",
+  "location": {
+   "id": "rpi_andrews_bay",
+   "name": "Andrews Bay",
+   "longitude": -123.166408,
+   "latitude": 48.546653
+  },
+  "annotations": [
+   {
+    "id": 1,
+    "startTime": 20,
+    "endTime": 23,
+    "confidence": 0.849692463874817,
+    "label": "transient"
+   },
+   {
+    "id": 2,
+    "startTime": 26,
+    "endTime": 29,
+    "confidence": 0.85206800699234,
+    "label": "resident"
+   },
+   {
+    "id": 3,
+    "startTime": 30,
+    "endTime": 33,
+    "confidence": 0.864890396595001,
+    "label": "resident"
+   },
+   {
+    "id": 4,
+    "startTime": 32,
+    "endTime": 35,
+    "confidence": 0.612807273864746,
+    "label": "resident"
+   }
+  ],
+  "reviewed": false,
+  "found": "No",
+  "confidence": 77.6588559150696,
+  "moderated": "0001-01-01T00:00:00",
+  "tagList": [
+   "srkw",
+   "vessel"
+  ],
+  "globalPredictionLabel": "resident"
+ },
+ {
+  "id": "b782f093-5acc-4d0e-b1b1-718e794b1c38",
+  "modelId": "davethaler/whale-call-detector",
+  "aiModel": "PODS-AI",
+  "timestamp": "2026-11-24T20:37:50Z",
+  "location": {
+   "id": "rpi_bush_point",
+   "name": "Bush Point",
+   "longitude": -122.6040035,
+   "latitude": 48.0336664
+  },
+  "annotations": [
+   {
+    "id": 1,
+    "startTime": 24,
+    "endTime": 27,
+    "confidence": 0.460777044296265,
+    "label": "resident"
+   },
+   {
+    "id": 2,
+    "startTime": 32,
+    "endTime": 35,
+    "confidence": 0.355895578861237,
+    "label": "resident"
+   },
+   {
+    "id": 3,
+    "startTime": 38,
+    "endTime": 41,
+    "confidence": 0.910867631435394,
+    "label": "humpback"
+   },
+   {
+    "id": 4,
+    "startTime": 44,
+    "endTime": 47,
+    "confidence": 0.616147637367248,
+    "label": "humpback"
+   }
+  ],
+  "reviewed": false,
+  "found": "No",
+  "confidence": 76.3507634401321,
+  "moderated": "0001-01-01T00:00:00",
+  "tagList": [
+   "humpback",
+   "vessel"
+  ],
+  "globalPredictionLabel": "humpback"
+ },
+ {
+  "id": "ae470d85-cfc4-4c2b-a162-6dcff2466fea",
+  "modelId": "orcasound/orcahello-srkw-detector-v1.030926",
+  "aiModel": "OrcaHello",
+  "timestamp": "2026-03-13T01:36:29Z",
+  "location": {
+   "id": "rpi_north_sjc",
+   "name": "North San Juan Channel",
+   "longitude": -123.058779,
+   "latitude": 48.591294
+  },
+  "annotations": [
+   {
+    "id": 1,
+    "startTime": 12,
+    "endTime": 15,
+    "confidence": 0.945178329944611,
+    "label": ""
+   },
+   {
+    "id": 2,
+    "startTime": 14,
+    "endTime": 17,
+    "confidence": 0.987311720848084,
+    "label": ""
+   },
+   {
+    "id": 3,
+    "startTime": 18,
+    "endTime": 21,
+    "confidence": 0.915735125541687,
+    "label": ""
+   },
+   {
+    "id": 4,
+    "startTime": 32,
+    "endTime": 35,
+    "confidence": 0.969012558460236,
+    "label": ""
+   },
+   {
+    "id": 5,
+    "startTime": 34,
+    "endTime": 37,
+    "confidence": 0.978954017162323,
+    "label": ""
+   },
+   {
+    "id": 6,
+    "startTime": 40,
+    "endTime": 43,
+    "confidence": 0.631281614303589,
+    "label": ""
+   },
+   {
+    "id": 7,
+    "startTime": 42,
+    "endTime": 45,
+    "confidence": 0.944232761859894,
+    "label": ""
+   }
+  ],
+  "reviewed": true,
+  "found": "yes",
+  "confidence": 98.3132869005203,
+  "moderated": "2026-03-13T07:47:48+00:00",
+  "tagList": [],
+  "globalPredictionLabel": ""
+ },
+ {
+  "id": "87b10932-df41-42a5-ba96-fa3c9e70a8a7",
+  "modelId": "orcasound/orcahello-srkw-detector-v1.030926",
+  "aiModel": "OrcaHello",
+  "timestamp": "2026-08-21T22:19:54Z",
+  "location": {
+   "id": "rpi_sunset_bay",
+   "name": "Sunset Bay",
+   "longitude": -122.33393605795372,
+   "latitude": 47.86497296593844
+  },
+  "annotations": [
+   {
+    "id": 1,
+    "startTime": 22,
+    "endTime": 25,
+    "confidence": 0.643459916114807,
+    "label": ""
+   },
+   {
+    "id": 2,
+    "startTime": 24,
+    "endTime": 27,
+    "confidence": 0.61742913722992,
+    "label": ""
+   }
+  ],
+  "reviewed": true,
+  "found": "no",
+  "confidence": 63.0444526672363,
+  "moderated": "2026-08-26T00:01:32+00:00",
+  "tagList": [
+   "humpback",
+   "whale"
+  ],
+  "globalPredictionLabel": ""
+ },
+ {
+  "id": "d7ea990a-f2e8-4f28-a8ab-5f80f5069b6b",
+  "modelId": "FastAI",
+  "aiModel": "OrcaHello",
+  "timestamp": "2020-11-21T15:29:36.301028Z",
+  "location": {
+   "id": "rpi_orcasound_lab",
+   "name": "Haro Strait",
+   "longitude": -123.17357,
+   "latitude": 48.55833
+  },
+  "annotations": [
+   {
+    "id": 1,
+    "startTime": 21.3559322033898,
+    "endTime": 22.37288135593217,
+    "confidence": 0.502515662461519,
+    "label": ""
+   },
+   {
+    "id": 2,
+    "startTime": 26.4406779661017,
+    "endTime": 27.45762711864407,
+    "confidence": 0.978152275085449,
+    "label": ""
+   },
+   {
+    "id": 3,
+    "startTime": 27.4576271186441,
+    "endTime": 28.47457627118647,
+    "confidence": 0.854849129915238,
+    "label": ""
+   },
+   {
+    "id": 4,
+    "startTime": 31.5254237288136,
+    "endTime": 32.54237288135597,
+    "confidence": 0.636480793356896,
+    "label": ""
+   },
+   {
+    "id": 5,
+    "startTime": 57.9661016949152,
+    "endTime": 58.98305084745757,
+    "confidence": 0.712830349802971,
+    "label": ""
+   }
+  ],
+  "reviewed": true,
+  "found": "don't know",
+  "confidence": 73.6965642124414,
+  "moderated": "2020-11-21T17:47:59+00:00",
+  "tagList": [
+   "whistle",
+   "buzz"
+  ],
+  "globalPredictionLabel": ""
+ }
+]

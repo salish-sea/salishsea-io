@@ -39,7 +39,7 @@ const healthy: HeartbeatInput = {
     lastSuccesses: [
         { source: 'maplify', finishedAt: minutesAgo(4) },
         { source: 'inaturalist', finishedAt: minutesAgo(6) },
-        { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
+        { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
     ],
     orphans: [],
     recentSuccesses: [],
@@ -58,7 +58,7 @@ describe('evaluateHeartbeat', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(47) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
             },
             THRESHOLDS,
@@ -72,7 +72,7 @@ describe('evaluateHeartbeat', () => {
         const findings = evaluateHeartbeat(
             {
                 ...healthy,
-                lastSuccesses: [{ source: 'maplify', finishedAt: minutesAgo(4) }, { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) }],
+                lastSuccesses: [{ source: 'maplify', finishedAt: minutesAgo(4) }, { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) }],
             },
             THRESHOLDS,
         );
@@ -88,7 +88,7 @@ describe('evaluateHeartbeat', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(30) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
             },
             THRESHOLDS,
@@ -140,7 +140,7 @@ describe('evaluateHeartbeat', () => {
         const findings = evaluateHeartbeat(
             {
                 now: NOW,
-                lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }, { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) }],
+                lastSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(90) }, { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) }],
                 recentSuccesses: [],
                 recentTransientFailures: [],
                 orphans: [
@@ -192,7 +192,7 @@ describe('evaluateHeartbeat: gaps between successes', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(47) },
                     { source: 'inaturalist', finishedAt: minutesAgo(6) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
                 recentSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(52) },
@@ -291,7 +291,7 @@ describe('evaluateHeartbeat: upstream outages', () => {
             lastSuccesses: [
                 { source: 'maplify', finishedAt: minutesAgo(4) },
                 { source: 'inaturalist', finishedAt: minutesAgo(downFor) },
-                { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
+                { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
             ],
             recentSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(downFor) }],
             recentTransientFailures: every5('inaturalist', downFor - 5, 1),
@@ -330,7 +330,7 @@ describe('evaluateHeartbeat: upstream outages', () => {
                 lastSuccesses: [
                     { source: 'maplify', finishedAt: minutesAgo(4) },
                     { source: 'inaturalist', finishedAt: minutesAgo(400) },
-                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
+                    { source: 'orcasound', finishedAt: minutesAgo(5) }, { source: 'orcasound-detections', finishedAt: minutesAgo(5) }, { source: 'orcahello', finishedAt: minutesAgo(5) }, { source: 'register', finishedAt: minutesAgo(5) },
                 ],
                 recentSuccesses: [{ source: 'inaturalist', finishedAt: minutesAgo(400) }],
                 // failing upstream, then nothing at all for the last 45 minutes
@@ -448,17 +448,17 @@ describe('heartbeatInput (the build\'s run log)', () => {
         expect(input.lastSuccesses.map((s) => s.source)).toEqual(['maplify']);
         expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]))
             .toEqual([['never_succeeded', 'inaturalist'], ['never_succeeded', 'orcasound'],
-                ['never_succeeded', 'register']]);
+                ['never_succeeded', 'orcasound-detections'], ['never_succeeded', 'orcahello'], ['never_succeeded', 'register']]);
     });
 
     test('ages are measured against the checker\'s clock: a build that stopped reads as stale', () => {
         // The file was last written two hours ago, when everything was fine.
         const twoHoursLate = new Date(NOW.getTime() + 120 * 60_000);
         const input = heartbeatInput(file([
-            run('maplify', 5, 4, 'success'), run('inaturalist', 5, 4, 'success'), run('orcasound', 5, 4, 'success'),
+            run('maplify', 5, 4, 'success'), run('inaturalist', 5, 4, 'success'), run('orcasound', 5, 4, 'success'), run('orcasound-detections', 5, 4, 'success'), run('orcahello', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
         ]), twoHoursLate);
-        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => f.kind)).toEqual(['stale', 'stale', 'stale', 'stale']);
+        expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => f.kind)).toEqual(['stale', 'stale', 'stale', 'stale', 'stale', 'stale']);
     });
 
     test('recent successes: everything inside the lookback plus the newest before it', () => {
@@ -471,7 +471,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
             run('maplify', 5, 4, 'success'),
             run('maplify', 30, 29, 'failed'),
             run('inaturalist', 6, 5, 'success'),
-            run('orcasound', 7, 6, 'success'),
+            run('orcasound', 7, 6, 'success'), run('orcasound-detections', 7, 6, 'success'), run('orcahello', 7, 6, 'success'),
             run('register', 7, 6, 'success'),
         ]), NOW, 120);
         const maplify = input.recentSuccesses
@@ -495,7 +495,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
             // a run interrupted by a restart: not a sign of life, and not a defect either
             {...run('inaturalist', 11, 10, 'failed', false), error: 'interrupted: no outcome recorded before the next run started'},
             run('maplify', 5, 4, 'success'),
-            run('orcasound', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'), run('orcasound-detections', 5, 4, 'success'), run('orcahello', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
         ]), NOW, 120);
         const ages = input.recentTransientFailures
@@ -517,7 +517,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
                 .map((m) => run('maplify', m + 1, m, 'success')),
             run('maplify', 5, 4, 'success'),
             run('inaturalist', 5, 4, 'success'),
-            run('orcasound', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'), run('orcasound-detections', 5, 4, 'success'), run('orcahello', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
         ]), NOW, 118);
         expect(evaluateHeartbeat(input, THRESHOLDS).map((f) => [f.kind, f.source]))
@@ -536,7 +536,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
                 .map((m) => run('inaturalist', m + 1, m, 'failed', true)),
             ...Array.from({length: 22}, (_, i) => run('inaturalist', 106 - i * 5, 105 - i * 5, 'success')),
             run('maplify', 5, 4, 'success'),
-            run('orcasound', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'), run('orcasound-detections', 5, 4, 'success'), run('orcahello', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
         ]), NOW, 118);
         expect(evaluateHeartbeat(input, THRESHOLDS)).toEqual([]);
@@ -549,7 +549,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
             {...run('inaturalist', 11, 10, 'failed', false), error: 'parse failed: photo.width is null'},
             run('inaturalist', 6, 5, 'success'),
             run('maplify', 5, 4, 'success'),
-            run('orcasound', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'), run('orcasound-detections', 5, 4, 'success'), run('orcahello', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
         ]), NOW, 120);
         const findings = evaluateHeartbeat(input, THRESHOLDS);
@@ -566,7 +566,7 @@ describe('heartbeatInput (the build\'s run log)', () => {
             run('maplify', 200, 199, 'failed', false),
             run('maplify', 5, 4, 'success'),
             run('inaturalist', 5, 4, 'success'),
-            run('orcasound', 5, 4, 'success'),
+            run('orcasound', 5, 4, 'success'), run('orcasound-detections', 5, 4, 'success'), run('orcahello', 5, 4, 'success'),
             run('register', 5, 4, 'success'),
         ]), NOW, 120);
         expect(input.recentDefects).toEqual([]);

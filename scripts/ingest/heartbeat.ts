@@ -88,7 +88,7 @@ const ARCHIVE_MINUTES = Number(process.env['ARCHIVE_MINUTES'] ?? 26 * 60);
  * asks for its newest release every run, and a run that fails without being transient —
  * an edition refused because it would un-name Maplify sightings — is a curator's to fix.
  */
-export const SOURCES = ['maplify', 'inaturalist', 'orcasound', 'register'] as const;
+export const SOURCES = ['maplify', 'inaturalist', 'orcasound', 'orcasound-detections', 'orcahello', 'register'] as const;
 
 /** Cron fires every 5 min; 30 min of no success = 6 consecutive missed/failed runs. */
 const FRESHNESS_MINUTES = Number(process.env['FRESHNESS_MINUTES'] ?? 30);

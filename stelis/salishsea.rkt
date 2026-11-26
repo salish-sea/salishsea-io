@@ -12,6 +12,9 @@
 ;;   ingest-maplify ─────▶ maplify_mirror.*  ──┐   (boundaries: each source's own
 ;;   ingest-inaturalist ─▶ inaturalist_mirror.*┤    fetch, into a SQLite mirror
 ;;   ingest-orcasound ───▶ orcasound.*  ───────┤    holding only what it said)
+;;   ingest-orcasound-detections ▶ orcasound_detections.*, ┤  (Orcasound's detections and
+;;   ingest-orcahello ───▶ orcahello.*  ──────────┤    OrcaHello's answers to them, for
+;;                                             │    build.detections: nothing published)
 ;;                                             │
 ;;   ingest-register ─▶ register.* ───────────┤   (its newest release, refused if it
 ;;                                             │    un-names a Maplify pair; decision 064)
@@ -131,6 +134,10 @@
 (define orcasound-mirror (build-path mirror-dir "orcasound.sqlite"))
 (define maplify-mirror (build-path mirror-dir "maplify.sqlite"))
 (define inaturalist-mirror (build-path mirror-dir "inaturalist.sqlite"))
+;; Orcasound's detections and OrcaHello's moderators' answers to them (salishsea decision
+;; 122, salish-fizm.1): two mirrors of their own, since each has its own source and pace.
+(define orcasound-detections-mirror (build-path mirror-dir "orcasound-detections.sqlite"))
+(define orcahello-mirror (build-path mirror-dir "orcahello.sqlite"))
 ;; The register (salishsea decision 064), beside the mirrors since salish-vedj: a DuckDB
 ;; file of its own that ingest-register writes beside and renames over, so a build that
 ;; reads it never opens a file being written, and no ingest needs the snapshot file,
@@ -211,6 +218,12 @@
 ;; The relations a mirror holds, each named "<source>.<table>", as the mirror is attached
 ;; under the source's name.
 (define orcasound-relations '(orcasound.bouts orcasound.bout_entities))
+;; Orcasound's detections, attached as orcasound_detections beside the bouts' `orcasound'.
+;; OrcaHello's windows and state tables are not relations: they change on every fetch, and
+;; no derivation reads them.
+(define orcasound-detections-relations
+  '(orcasound_detections.detections orcasound_detections.feeds orcasound_detections.covered_days))
+(define orcahello-relations '(orcahello.detections))
 ;; Maplify's mirror is attached as maplify_mirror, not maplify: the snapshot named
 ;; Postgres's copy maplify.sightings while both ingested, and the twin test still does.
 (define maplify-relations '(maplify_mirror.sightings maplify_mirror.covered_days))
@@ -314,7 +327,9 @@
   '(maplify_mirror.sightings
     inaturalist_mirror.observations inaturalist_mirror.observation_photos inaturalist_mirror.taxa
     inaturalist_mirror.identifications inaturalist_mirror.comments
-    orcasound.bouts orcasound.bout_entities))
+    orcasound.bouts orcasound.bout_entities
+    ;; the detections, for build.detections (decision 122); not their covered days
+    orcasound_detections.detections orcasound_detections.feeds orcahello.detections))
 
 ;; What derive-occurrences reads: the mirrors for the three sources, the snapshot for the
 ;; rest, but not the identifications people assert here (public.identifications), which
@@ -330,6 +345,10 @@
 ;; The mirrors, as the derivations take them: maplify, inaturalist, orcasound.
 (define MIRRORS
   (map path->string (list maplify-mirror inaturalist-mirror orcasound-mirror)))
+;; And, for derive-occurrences alone, the two of Orcasound's detections after them: nothing
+;; else reads a detection, so no other task depends on those files.
+(define DETECTION-MIRRORS
+  (append MIRRORS (map path->string (list orcasound-detections-mirror orcahello-mirror))))
 
 ;; The profile pages' link views, each twinned under build. by derive-profile-links
 ;; (salish-xv35.13); the pages read the twins.
@@ -476,7 +495,8 @@
     ;; days fetched (salish-xv35.7); every iNaturalist observation in the fetch box, its
     ;; photos, who identified it as what and what anyone wrote on it, the taxa they
     ;; reach, the days reconciled and how far the changes sweep has read (salish-xv35.8).
-    (for/list ([name (in-list (append orcasound-relations maplify-relations inaturalist-relations))])
+    (for/list ([name (in-list (append orcasound-relations orcasound-detections-relations orcahello-relations
+                                      maplify-relations inaturalist-relations))])
       (make-artifact name 'db-relation))
     (list
      ;; The occurrences as the build derives them (salish-xv35.2): id, observed_at
@@ -484,6 +504,11 @@
      ;; build., beside what it was derived from. What every published file reads
      ;; (salish-xv35.9).
      (make-artifact 'build.occurrences 'db-relation)
+     ;; Orcasound's detections marked as whales, with what each claims and whether a moderator
+     ;; or a confirmed bout confirms or rejects it (salishsea decision 122, salish-fizm.1).
+     ;; Derived by derive-occurrences beside the occurrences, and read by nothing yet: no file
+     ;; the site serves depends on it.
+     (make-artifact 'build.detections 'db-relation)
      ;; That every Maplify name Postgres resolved still resolves in the register the
      ;; build was given.
      (make-artifact 'maplify-names-hold 'token)
@@ -713,10 +738,10 @@
    (make-task 'derive-occurrences 'transform
               #:inputs (append occurrence-derivation-inputs
                                '(water-regions.json places-osm.json places-parks.json reference/landmarks.tsv))
-              #:outputs '(build.occurrences)
+              #:outputs '(build.occurrences build.detections)
               #:invoke (node-script/code "scripts/read-path/derive-occurrences.ts"
                                  '()
-                                 (append (list* SNAPSHOT-DB MIRRORS)
+                                 (append (list* SNAPSHOT-DB DETECTION-MIRRORS)
                                          (list "--regions" (path->string water-regions-file)
                                                "--landmarks"
                                                (path->string (in-checkout "data" "reference" "landmarks.tsv"))
@@ -786,6 +811,22 @@
               #:invoke (node-script/code "scripts/read-path/ingest-orcasound.ts"
                                  '()
                                  (list (path->string orcasound-mirror))))
+   ;; Orcasound's detections (salishsea decision 122, salish-fizm.1): the last 14 days and one
+   ;; older month reconciled into a SQLite mirror, each window applied only when orcasite's own
+   ;; count says the fetch holds every detection in it. Nothing published reads them yet.
+   (make-task 'ingest-orcasound-detections 'boundary
+              #:outputs orcasound-detections-relations
+              #:invoke (node-script/code "scripts/read-path/ingest-orcasound-detections.ts"
+                                 '()
+                                 (list (path->string orcasound-detections-mirror))))
+   ;; OrcaHello's detections and its moderators' answers, upserted a UTC day at a time on a
+   ;; schedule the mirror itself keeps (its API falls over under load, so it is never asked
+   ;; faster than the schedule allows, whatever this build's tick) and never deleted from.
+   (make-task 'ingest-orcahello 'boundary
+              #:outputs orcahello-relations
+              #:invoke (node-script/code "scripts/read-path/ingest-orcahello.ts"
+                                 '()
+                                 (list (path->string orcahello-mirror))))
    ;; Maplify's windows, fetched by the build (salishsea decision 061, salish-xv35.7): the
    ;; thirty days ending today and one older month for anti-entropy (salish-xv35.15),
    ;; each reconciled into a SQLite mirror in one transaction, nothing written unless the
@@ -852,9 +893,9 @@
 ;; before, a prune rewrites the log beside itself, and the relation observer holds a
 ;; digest until a task in the same process writes the relation. So a build that must
 ;; run beside another needs a state dir of its own, which is a graph of its own.
-;; salishsea has two writers: the four ingests, which pull the sources every five
+;; salishsea has two writers: the six ingests, which pull the sources every five
 ;; minutes (network-bound, long, light), and everything from the snapshot on, which
-;; a save runs too (CPU- and memory-bound, short). The INGEST graph holds the four
+;; a save runs too (CPU- and memory-bound, short). The INGEST graph holds the six
 ;; boundaries and what they read and write; the DERIVE graph holds the rest, and
 ;; reads what the ingests wrote as UPSTREAM leaves — somebody else's data,
 ;; snapshotted in, with no producer here (ADR 0013). Same names, same tables, same
@@ -865,7 +906,8 @@
 ;; The register has its own file (register-db, salish-vedj), so no ingest opens the
 ;; snapshot file, and salishsea runs the ingest graph outside the lock the derive
 ;; graph builds under (salish-uh0y): a save's build never waits for an ingest.
-(define ingest-task-names '(ingest-maplify ingest-orcasound ingest-inaturalist ingest-register))
+(define ingest-task-names
+  '(ingest-maplify ingest-orcasound ingest-orcasound-detections ingest-orcahello ingest-inaturalist ingest-register))
 (define (ingest-task? t) (memq (task-name t) ingest-task-names))
 (define ingest-tasks (filter ingest-task? tasks))
 (define derive-tasks (filter (lambda (t) (not (ingest-task? t))) tasks))
@@ -943,9 +985,11 @@
      (cond
        [(or (memq artifact derivation-input-relations)
             (memq artifact orcasound-relations)
+            (memq artifact orcasound-detections-relations)
+            (memq artifact orcahello-relations)
             (memq artifact maplify-relations)
             (memq artifact inaturalist-relations)
-            (memq artifact '(build.occurrences build.occurrence_identifier_candidates register.edition))
+            (memq artifact '(build.occurrences build.detections build.occurrence_identifier_candidates register.edition))
             (memq artifact profile-link-relations))
         (list (symbol->string artifact))]
        [else
@@ -959,6 +1003,8 @@
 (define (relation-db artifact)
   (cond
     [(memq artifact orcasound-relations) (sqlite-db orcasound-mirror "orcasound")]
+    [(memq artifact orcasound-detections-relations) (sqlite-db orcasound-detections-mirror "orcasound_detections")]
+    [(memq artifact orcahello-relations) (sqlite-db orcahello-mirror "orcahello")]
     [(memq artifact maplify-relations) (sqlite-db maplify-mirror "maplify_mirror")]
     [(memq artifact inaturalist-relations) (sqlite-db inaturalist-mirror "inaturalist_mirror")]
     [(or (memq artifact register-relations) (eq? artifact 'register.edition))

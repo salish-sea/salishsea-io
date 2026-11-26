@@ -5,21 +5,59 @@
  */
 
 import type { DuckDBConnection } from '@duckdb/node-api';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { sqlString } from '../duckdb-budget.ts';
 
-/** Each source's SQLite mirror, as the ingest tasks write them. */
-export type Mirrors = {maplify: string, inaturalist: string, orcasound: string};
+/**
+ * Each source's SQLite mirror, as the ingest tasks write them. The two for Orcasound's
+ * detections (salish-fizm.1, decision 122) are only for the derivation that reads them,
+ * derive-occurrences.ts, which gives both or neither: the profile links and the archive
+ * read no detection, so their tasks don't depend on those files.
+ */
+export type Mirrors = {
+    maplify: string, inaturalist: string, orcasound: string,
+    /** orcasite's detections, and OrcaHello's moderators' answers to them. */
+    detections?: {orcasite: string, orcahello: string},
+};
 
 /** Stelis's names for them (src/salishsea.rkt's relation resolver). */
 const ALIASES = {maplify: 'maplify_mirror', inaturalist: 'inaturalist_mirror', orcasound: 'orcasound'} as const;
+const DETECTION_ALIASES = {orcasite: 'orcasound_detections', orcahello: 'orcahello'} as const;
 
-export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): Promise<void> {
+/**
+ * Attach the mirrors and read their views. Returns whether the detections' two mirrors
+ * were attached and read: false when none was given, and also when they could not be (a
+ * derivation that runs before the first ingest has made the files, or a file that has lost
+ * a table), which is said and costs build.detections only, never the occurrences.
+ */
+export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): Promise<boolean> {
     await conn.run('INSTALL sqlite; LOAD sqlite');
-    for (const [source, alias] of Object.entries(ALIASES) as [keyof Mirrors, string][])
+    for (const [source, alias] of Object.entries(ALIASES) as [keyof typeof ALIASES, string][])
         await conn.run(`ATTACH ${sqlString(mirrors[source])} AS ${alias} (TYPE sqlite, READ_ONLY)`);
     await conn.run(await readFile(new URL('./sources.sql', import.meta.url), 'utf8'));
     await conn.run(await readFile(new URL('./source-taxa.sql', import.meta.url), 'utf8'));
+    if (!mirrors.detections) return false;
+    const attached: string[] = [];
+    try {
+        for (const [source, alias] of Object.entries(DETECTION_ALIASES) as [keyof typeof DETECTION_ALIASES, string][]) {
+            // DuckDB attaches a file that isn't there without complaint and fails at its first read, and
+            // a database it can't open stays in the catalog, failing every query that lists them.
+            if (!existsSync(mirrors.detections[source])) throw new Error(`${mirrors.detections[source]} doesn't exist yet`);
+            await conn.run(`ATTACH ${sqlString(mirrors.detections[source])} AS ${alias} (TYPE sqlite, READ_ONLY)`);
+            attached.push(alias);
+        }
+        // DuckDB opens a mirror lazily, so a file that isn't there only fails at its first read:
+        // read each table now, inside the try.
+        for (const table of ['orcasound_detections.detections', 'orcasound_detections.feeds', 'orcahello.detections'])
+            await conn.run(`SELECT 1 FROM ${table} LIMIT 0`);
+        await conn.run(await readFile(new URL('./detection-sources.sql', import.meta.url), 'utf8'));
+        return true;
+    } catch (error) {
+        console.error(`build.detections: the detections' mirrors can't be read, so it is not derived this run: ${String(error)}`);
+        for (const alias of attached) await conn.run(`DETACH ${alias}`).catch(() => undefined);
+        return false;
+    }
 }
 
 /**
@@ -33,8 +71,13 @@ export async function attachTaxa(conn: DuckDBConnection, inaturalist: string): P
     await conn.run(await readFile(new URL('./source-taxa.sql', import.meta.url), 'utf8'));
 }
 
-/** The three mirror paths from a command line, in Mirrors' order, or null if any is missing. */
+/**
+ * The mirror paths from a command line, in Mirrors' order: the three sources', and
+ * optionally orcasite's detections' and OrcaHello's after them. Null if one of the three is
+ * missing, or if only one of the other two is given.
+ */
 export function mirrorArgs(args: readonly string[]): Mirrors | null {
-    const [maplify, inaturalist, orcasound] = args;
-    return maplify && inaturalist && orcasound ? {maplify, inaturalist, orcasound} : null;
+    const [maplify, inaturalist, orcasound, orcasite, orcahello, ...rest] = args;
+    if (!maplify || !inaturalist || !orcasound || rest.length > 0 || (orcasite === undefined) !== (orcahello === undefined)) return null;
+    return orcasite && orcahello ? {maplify, inaturalist, orcasound, detections: {orcasite, orcahello}} : {maplify, inaturalist, orcasound};
 }

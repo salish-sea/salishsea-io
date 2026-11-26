@@ -3,8 +3,9 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
+import { DatabaseSync } from 'node:sqlite';
 
 import { CATALOGUE_VIEWS, deriveCatalogue } from './derive-catalogue.ts';
 import { deriveIdentifierCandidates } from './derive-identifier-candidates.ts';
@@ -110,9 +111,12 @@ describe('armsFor', () => {
         'public.observations': 'public.observations', 'public.observation_photos': 'public.observation_photos',
         'public.contributors': 'public.contributors',
         'orcasound.bouts': 'source_acoustic_bouts', 'orcasound.bout_entities': 'source_acoustic_bout_entities', 'public.hydrophones': 'public.hydrophones',
+        'orcasound_detections.detections': 'source_orcasound_detections', 'orcasound_detections.feeds': 'source_orcasound_feeds',
+        'orcahello.detections': 'source_orcahello_detections',
     };
 
-    const HELPERS = ['sources.sql', 'shared.sql', 'lookups.sql', 'maplify-collection.sql'];
+    // detections.sql is the orcasound arm's too, over the arm's own view (derive-occurrences.ts)
+    const HELPERS = ['sources.sql', 'detection-sources.sql', 'shared.sql', 'lookups.sql', 'maplify-collection.sql'];
     // the two arms whose views bind to tables a TypeScript writer resolves first: what it reads counts as the arm's
     const WRITERS: Partial<Record<Source, string>> = {maplify: 'maplify-entities.ts', inaturalist: 'inaturalist-scope.ts'};
 
@@ -144,7 +148,9 @@ describe('armsFor', () => {
         const dir = new URL('./derive/', import.meta.url);
         const helpers = await Promise.all(HELPERS.map(f => readFile(new URL(f, dir), 'utf8')));
         const parts = parseArms(await readFile(new URL('occurrences.sql', dir), 'utf8'));
-        const graph = readGraph([...helpers, ...SOURCES.map(s => parts.arms[s])].join(';\n'));
+        const detections = await readFile(new URL('detections.sql', dir), 'utf8');
+        const graph = readGraph([...helpers, ...SOURCES.map(s => parts.arms[s]), detections].join(';\n'));
+        graph.set('orcasound_occurrences', new Set([...graph.get('orcasound_occurrences')!, 'detections_derived']));
         for (const [source, file] of Object.entries(WRITERS) as [Source, string][]) {
             const code = await readFile(new URL(file, dir), 'utf8');
             const reads = [...code.matchAll(/\b(?:FROM|JOIN)\s+([a-z_][\w.]*)/gi)].map(m => m[1]!);
@@ -452,6 +458,117 @@ describe('the derivations over the fixture', () => {
                        (SELECT no_agreement FROM archive.dwc.export_coverage WHERE branch = 'native'),
                        (SELECT exported_rows FROM archive.dwc.export_coverage WHERE branch = 'maplify')`)).getRows()[0]!.map(Number));
             expect(withheld).toEqual([0, 0, 2, 7]);
+        } finally {
+            await rm(dir, {recursive: true, force: true});
+        }
+    }, 120_000);
+
+    // build.detections (salish-fizm.1, decision 122): each Orcasound detection marked as a
+    // whale, whether an OrcaHello moderator or a confirmed bout has confirmed or rejected it, and the
+    // taxon that gives. One detection for each case of the order, in fixtures/twins/detections/:
+    // mirrors.json holds the two mirrors' rows, expected.csv what each derives. The twin bouts
+    // here are 001 (J pod, probable: confirmed) and 002 (an orca, only possible: unconfirmed).
+    test('build.detections: the confirmation and taxon rule of decision 122, a case at a time', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'derive-detections-'));
+        try {
+            const snapshot = path.join(dir, 'snapshot.duckdb');
+            await fixtureSnapshot(snapshot);
+            await promisify(execFile)('node', [path.join(import.meta.dirname, 'reference.ts'), snapshot]);
+            const mirrors = await mirrorsFromSnapshot(snapshot, dir);
+            expect((await deriveOccurrences(snapshot, mirrors, null)).arms).toBe('all');
+            const columns = `id, strftime(timezone('UTC', observed_at), '%Y-%m-%d %H:%M:%S+00') AS observed_at, feed_id, source, detector_claim, orcahello_answer,
+                bout_id, taxon_entity, confirmation, basis`;
+            const expected = path.join(import.meta.dirname, 'fixtures', 'twins', 'detections', 'expected.csv');
+            expect(await withStore(snapshot, conn => rowsOnOneSide(conn,
+                `SELECT * FROM read_csv('${expected}', header = true, all_varchar = true, nullstr = '')`,
+                `SELECT ${columns} FROM store.build.detections`))).toEqual([]);
+            const query = (sql: string) => withStore(snapshot, async conn => (await conn.runAndReadAll(sql)).getRows());
+            // A vessel, another sound and a hidden detection are in the mirror and not here.
+            expect(await query(`SELECT count(*) FROM store.build.detections WHERE id IN
+                ('orcasound:det_T08', 'orcasound:det_T09', 'orcasound:det_T16')`)).toEqual([[0n]]);
+            // Where the hydrophone is, and how far it hears (decision 077)
+            expect(await query(`SELECT location.lon, location.lat, accuracy FROM store.build.detections WHERE id = 'orcasound:det_T01'`))
+                .toEqual([[-123.1735, 48.5583, 5000]]);
+            // A moderator's tags are kept, lower-cased or not, only once they have answered
+            expect(await query(`SELECT orcahello_tags FROM store.build.detections WHERE id = 'orcasound:det_T12'`))
+                .toEqual([[{items: ['Whale', 'orca']}]]);
+            expect(await query(`SELECT orcahello_tags IS NULL FROM store.build.detections WHERE id = 'orcasound:det_T07'`)).toEqual([[true]]);
+            // Nothing the detections add reaches the occurrences, which the twins check as before
+            expect(await query(`SELECT count(*) FROM store.build.occurrences WHERE id LIKE 'orcasound:det%'`)).toEqual([[0n]]);
+
+            // A bout that confirms two cetacean species gives the one the detector's claim is
+            // under, else the lowest register identifier. One more bout at Bush Point, an orca and a
+            // humpback both certain, with three unanswered detections in it.
+            const orcasound = new DatabaseSync(mirrors.orcasound);
+            try {
+                orcasound.exec(`
+                    INSERT INTO bouts (id, feed_id, feed_name, lon, lat, started_at, ended_at, title, category)
+                        VALUES ('bout_twin0000000000000003', 'feed_02u8r4EOo8cuSHdC7xDqMI', 'Bush Point', -122.6040035, 48.0336664,
+                        '2026-09-20T10:00:00Z', '2026-09-20T11:00:00Z', 'Two species', 'biophony');
+                    INSERT INTO bout_entities (bout_id, entity_id, certainty) VALUES ('bout_twin0000000000000003', 'SSA:0000900', 'certain'),
+                        ('bout_twin0000000000000003', 'SSA:0000901', 'certain');
+                    -- and one that spans the same moments, started earlier, whose orca is only possible:
+                    -- the detections fall in both, and take the bout that confirms
+                    INSERT INTO bouts (id, feed_id, feed_name, lon, lat, started_at, ended_at, title, category)
+                        VALUES ('bout_twin0000000000000004', 'feed_02u8r4EOo8cuSHdC7xDqMI', 'Bush Point', -122.6040035, 48.0336664,
+                        '2026-09-20T09:50:00Z', '2026-09-20T11:10:00Z', 'Faint', 'biophony');
+                    INSERT INTO bout_entities (bout_id, entity_id, certainty) VALUES ('bout_twin0000000000000004', 'SSA:0000900', 'possible')`);
+            } finally { orcasound.close(); }
+            const detections = new DatabaseSync(mirrors.detections!.orcasite);
+            const orcahello = new DatabaseSync(mirrors.detections!.orcahello);
+            try {
+                const detection = detections.prepare(`INSERT INTO detections (id, feed_id, timestamp, source, category, listener_count, visible, orcahello_id)
+                    VALUES (?, 'feed_02u8r4EOo8cuSHdC7xDqMI', ?, ?, 'whale', 0, 1, ?)`);
+                detection.run('det_T20', '2026-09-20T10:10:00.000000Z', 'machine', 'oh-t20');
+                detection.run('det_T21', '2026-09-20T10:20:00.000000Z', 'machine', 'oh-t21');
+                detection.run('det_T22', '2026-09-20T10:30:00.000000Z', 'human', null);
+                const row = orcahello.prepare(`INSERT INTO detections (id, location_id, timestamp, model_id, ai_model, global_prediction_label, reviewed, found, tags, annotations)
+                    VALUES (?, 'rpi_bush_point', '2026-09-20T10:10:00Z', ?, ?, ?, 0, 'No', '[]', '[]')`);
+                row.run('oh-t20', 'FastAI', 'OrcaHello', '');
+                row.run('oh-t21', 'davethaler/whale-call-detector', 'PODS-AI', 'humpback');
+            } finally { detections.close(); orcahello.close(); }
+            // the orcasound arm alone is re-derived, and build.detections follows it
+            expect((await deriveOccurrences(snapshot, mirrors, ['orcasound.bouts'])).arms).toEqual(['orcasound']);
+            expect(await query(`SELECT id, taxon_entity, confirmation, basis, bout_id FROM store.build.detections
+                WHERE id IN ('orcasound:det_T20', 'orcasound:det_T21', 'orcasound:det_T22') ORDER BY id`)).toEqual([
+                // a Southern Resident detector's claim is under the orca
+                ['orcasound:det_T20', 'SSA:0000900', 'confirmed', 'bout', 'bout_twin0000000000000003'],
+                // a PODS-AI humpback
+                ['orcasound:det_T21', 'SSA:0000901', 'confirmed', 'bout', 'bout_twin0000000000000003'],
+                // a listener's whale is under neither: the lowest identifier
+                ['orcasound:det_T22', 'SSA:0000900', 'confirmed', 'bout', 'bout_twin0000000000000003'],
+            ]);
+            // a change only to the detections' mirrors re-derives the same arm, and only it
+            expect((await deriveOccurrences(snapshot, mirrors, ['orcahello.detections'])).arms).toEqual(['orcasound']);
+
+            // A store that has build.occurrences but no build.detections, as one built before they
+            // existed does, is derived whole even when told only a native input changed.
+            const drop = async (sql: string) => {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try { await conn.run(`ATTACH '${snapshot}' AS store`); await conn.run(sql); } finally { conn.closeSync(); db.closeSync(); }
+            };
+            await drop('DROP TABLE store.build.detections');
+            expect((await deriveOccurrences(snapshot, mirrors, ['public.observations'])).arms).toBe('all');
+            const kept = await query('SELECT count(*) FROM store.build.detections');
+            expect(Number(kept[0]![0])).toBe(16);
+
+            // A failure building them costs them, not the occurrences: the mirror has lost a table,
+            // the occurrences are derived as ever, and the last build.detections stays.
+            const lost = new DatabaseSync(mirrors.detections!.orcahello);
+            try { lost.exec('DROP TABLE detections'); } finally { lost.close(); }
+            const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+            expect((await deriveOccurrences(snapshot, mirrors, ['orcasound.bouts'])).arms).toEqual(['orcasound']);
+            expect(errors).toHaveBeenCalledWith(expect.stringMatching(/build\.detections: .*not derived this run/));
+            expect(await query('SELECT count(*) FROM store.build.detections')).toEqual(kept);
+            expect(Number((await query(`SELECT count(*) FROM store.build.occurrences WHERE source = 'orcasound'`))[0]![0])).toBeGreaterThan(0);
+
+            // And before the first ingest has made the mirrors, a derivation still derives the occurrences.
+            const early = {...mirrors, detections: {orcasite: path.join(dir, 'not-yet.sqlite'), orcahello: path.join(dir, 'not-yet-either.sqlite')}};
+            await drop('DROP TABLE store.build.detections');
+            expect((await deriveOccurrences(snapshot, early, null)).arms).toBe('all');
+            expect(await query(`SELECT count(*) FROM information_schema.tables WHERE table_schema = 'build' AND table_name = 'detections'`)).toEqual([[0n]]);
+            errors.mockRestore();
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

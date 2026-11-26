@@ -11,6 +11,7 @@ doc
 "{""entity_id"": ""SSA:0000900"", ""common_name"": ""Killer whale"", ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca""}"
 "{""entity_id"": ""SSA:0000901"", ""common_name"": ""Humpback whale"", ""taxon_entity_id"": ""SSA:0000901"", ""taxon_common_name"": ""Humpback whale"", ""inaturalist_scientific_name"": ""Megaptera novaeangliae""}"
 "{""entity_id"": ""SSA:0000904"", ""common_name"": ""Harbour seal"", ""taxon_entity_id"": ""SSA:0000904"", ""taxon_common_name"": ""Harbour seal"", ""inaturalist_scientific_name"": ""Phoca vitulina""}"
+"{""entity_id"": ""SSA:0000934"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000934"", ""taxon_common_name"": null, ""inaturalist_scientific_name"": null}"
 "{""entity_id"": ""SSA:0002033"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca rectipinnus""}"
 "{""entity_id"": ""SSA:0002078"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca rectipinnus""}"
 "{""entity_id"": ""SSA:0002163"", ""common_name"": null, ""taxon_entity_id"": ""SSA:0000900"", ""taxon_common_name"": ""Killer whale"", ""inaturalist_scientific_name"": ""Orcinus orca rectipinnus""}"
