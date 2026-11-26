@@ -150,7 +150,7 @@ export const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['�
 
 const STOP_SENTENCE = new RegExp(SENTENCE_END, 'y');
 const STOP_BUT = /\bbut\b/iy;
-const KEEPS_GOING = /\s*(?:or|and|nor|&)\b/iy;
+const KEEPS_GOING = /\s*(?:(?:or|and|nor)\b|&)/iy;
 
 /**
  * Where the "?" closing a question that starts at `from` is, or null. A question asked with an
@@ -197,13 +197,17 @@ export function negatedQuestions(text: string): {start: number, end: number}[] {
  * the parsers found. A bare "not" followed by a comma is a correction ("Not T090s, T030Bs or
  * T037s"), and only "nor" makes it a list.
  */
-export function orListFrom(text: string, tokens: readonly {start: number, end: number}[], at: number, onlyNor: boolean): boolean {
+export function orListFrom(text: string, tokens: readonly {start: number, end: number, group?: number}[], at: number, onlyNor: boolean): boolean {
     const byStart = new Map(tokens.map(t => [t.start, t]));
+    // The pods of one "J and K pods" are one item of the list: step over all of them.
+    const groupEnd = new Map<number, number>();
+    for (const t of tokens) if (t.group !== undefined) groupEnd.set(t.group, Math.max(groupEnd.get(t.group) ?? 0, t.end));
     let pos = at;
     for (;;) {
         const tok = byStart.get(pos);
         if (!tok) return false;
-        pos = tok.end + (/^['’]s/.exec(text.slice(tok.end))?.[0].length ?? 0);
+        const end = tok.group !== undefined ? groupEnd.get(tok.group)! : tok.end;
+        pos = end + (/^['’]s/.exec(text.slice(end))?.[0].length ?? 0);
         const comma = /^\s*,\s*/.exec(text.slice(pos));
         if (comma && byStart.has(pos + comma[0].length)) { pos += comma[0].length; continue; }
         break;
@@ -211,7 +215,18 @@ export function orListFrom(text: string, tokens: readonly {start: number, end: n
     const join = new RegExp(String.raw`^\s*,?\s+(?:${onlyNor ? 'nor' : 'or|nor'})\s+(?:${LIST_DETERMINER}\s+)?`, 'i').exec(text.slice(pos));
     if (!join) return false;
     const next = pos + join[0].length;
-    return byStart.has(next) || /^[A-H]\b/.test(text.slice(next));
+    return byStart.has(next) || shortFormAt(text.slice(next), true) !== null;
+}
+
+/**
+ * A short form at the start of `rest`, taking its matriline from the code before it ("& A3",
+ * "or A4"), or a matriline's letter alone when it follows a list separator ("& B", `listed`),
+ * but not a word such as "I" or a bearing ("E of Lime Kiln"). The negation loop and the
+ * or-list read short forms by this one rule.
+ */
+export function shortFormAt(rest: string, listed: boolean): string | null {
+    return /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(rest)?.[1]
+        ?? (listed ? /^([A-H])(?![A-Za-z0-9'’])(?!\s*-?\s*(?:of|bound|side|end|shore)\b)/.exec(rest)?.[1] ?? null : null);
 }
 
 /** Whether a name (a code, a pod or a population) starts at `at` or ends at `at`, read from the same tokens the readers use. */

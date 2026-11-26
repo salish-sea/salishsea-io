@@ -46,7 +46,7 @@
  */
 
 import { readBehaviour, readGroupPart, ownMarks, type GroupPart } from './behaviour.ts';
-import { namedCodes, groupTokens, markAfter, LIST_DETERMINER, POD_JOIN, NEGATION, ASKS, negatedQuestions, orListFrom, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
+import { namedCodes, groupTokens, markAfter, LIST_DETERMINER, shortFormAt, POD_JOIN, NEGATION, ASKS, negatedQuestions, orListFrom, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
 import { reaches, rank, type Certainty } from './hedge.ts';
 
 export type { Certainty };
@@ -232,12 +232,10 @@ export function readText(text: string): Reading {
             // separator ("& B"), but not a word such as "I" or a direction ("E of Lime Kiln");
             // only after a code
             const listed = /[,\/&+]|\b(?:and|or|nor)\b/i.test(gap);
-            const short: RegExpExecArray | null = previous?.kind !== 'code' ? null
-                : /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(text.slice(at))
-                    ?? (listed ? /^([A-H])(?![A-Za-z0-9'’])(?!\s*-?\s*(?:of|bound|side|end|shore)\b)/.exec(text.slice(at)) : null);
+            const short: string | null = previous?.kind !== 'code' ? null : shortFormAt(text.slice(at), listed);
             if (short) {
-                const code: string = base(previous!.text, true) + short[1]!;
-                absent.add(code); previous = {start: at, end: at + short[1]!.length, text: code, kind: 'code'}; pos = at + short[1]!.length; continue;
+                const code: string = base(previous!.text, true) + short;
+                absent.add(code); previous = {start: at, end: at + short.length, text: code, kind: 'code'}; pos = at + short.length; continue;
             }
             break;
         }

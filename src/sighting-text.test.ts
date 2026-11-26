@@ -221,6 +221,14 @@ describe('reading sighting text', () => {
         expect(identifierLabels(anyOf)).toEqual([]);
         expect(absent(anyOf).sort()).toEqual(['T65A', 'T65B', 'T65Cs']);
         expect(identifierLabels(readText('No T65A, T65B or any T65Cs'))).toEqual([]);
+        // a pod list is one item of a negated list
+        expect(labels('No T65A, J and K pods or L pod')).toEqual([]);
+        // "&" after a comma continues a negated question
+        expect(labels('No T65A, & T65B?')).toEqual(['T65A?', 'T65B?']);
+        // a numbered short form ends a negated list, read by the negation loop's own rule
+        const short = readText('no T65A, T65B or A4');
+        expect(identifierLabels(short)).toEqual([]);
+        expect(absent(short).sort()).toEqual(['T65A', 'T65A4', 'T65B']);
         // unchanged: a bare "not" and a comma is a correction, and a comma ends a question's clause
         expect(labels('Not T090s, T030Bs or T037s')).toEqual(['T30Bs', 'T37s']);
     });
