@@ -1,6 +1,6 @@
 # 013 — Orcasound acoustic occurrences come from curated biophony bouts, identified by upstream tags
 
-**Status:** accepted; built (bouts on the map since 2026-09-25) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); the older tags classified 2026-09-25 (#1016); #1015, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
+**Status:** accepted; built (bouts on the map since 2026-09-25); amended by [122](122-an-orcasound-detection-is-unconfirmed-until-a-bout-or-a-moderator-confirms-it.md) (2026-11-25: a detection becomes an occurrence beside the bouts) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); the older tags classified 2026-09-25 (#1016); #1015, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
 **Amended:** 2026-08-14 (see [Amendment](#amendment-2026-08-14) — identifications arrive
 typed, and the upstream ask is a schema change) · 2026-09-20 (see
 [Amendment](#amendment-2026-09-20) — orcasite is read directly, with no mirror schema; an
