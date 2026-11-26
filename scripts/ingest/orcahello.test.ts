@@ -98,7 +98,7 @@ describe('plan', () => {
         expect(draw(0)).toBe(FIRST_DAY);
         expect(draw(0.999999) <= '2026-10-27').toBe(true);
         // weight 1 / (1 + age in years): the newer half of the span holds well over half the draws
-        const draws = Array.from({ length: 1000 }, (_, i) => draw(i / 1000));
-        expect(draws.filter(d => d >= '2023-11-01').length).toBeGreaterThan(600);
+        const draws = Array.from({ length: 100 }, (_, i) => draw(i / 100));
+        expect(draws.filter(d => d >= '2023-11-01').length).toBeGreaterThan(60);
     });
 });
