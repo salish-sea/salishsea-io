@@ -68,9 +68,12 @@ export const fetchPage: PageFetcher = async (url) => {
         // what an overloaded API answers, or a refusal that waiting ends: not ours to fix
         throw res.status === 403 || res.status === 429 || res.status >= 500 ? markTransientUpstream(error) : error;
     }
-    // The count comes first, and every answer must carry it: with no count there is nothing to
-    // hold the pages to, so nothing is ever taken as a whole day. A blank body (or a 204) is an
-    // empty day only when the count says 0.
+    // A 204 is the API's own count of zero: the controller answers NoContent when its query
+    // counts no detections, before it sets any header (AIForOrcas.Server's DetectionsController,
+    // `queryable.Count() == 0`), so a 204 carries no count and needs none.
+    if (res.status === 204) return { body: [], total: 0 };
+    // Every other answer must carry the count: with none there is nothing to hold the pages to,
+    // so nothing is ever taken as a whole day. A blank 200 is an empty day only when it says 0.
     const said = res.headers.get('totalNumberRecords');
     if (said === null || !/^\d+$/.test(said.trim()))
         throw markTransientUpstream(new Error(`OrcaHello's answer has no usable totalNumberRecords (${said === null ? 'absent' : JSON.stringify(said)})`));

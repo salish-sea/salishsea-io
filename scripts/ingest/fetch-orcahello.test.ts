@@ -152,16 +152,22 @@ describe('fetchPage', () => {
         expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
     });
 
-    it('takes 204 and an empty body as no detections only with an explicit count of 0', async () => {
+    it('takes a 204 as the API counting no detections, with or without a header', async () => {
+        // what production answers for a day with none yet: NoContent, sent before any header
+        answer(204, '', {});
+        expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
         answer(204, '', { totalNumberRecords: '0' });
         expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
+    });
+
+    it('takes a blank 200 as no detections only with an explicit count of 0', async () => {
         answer(200, '  ', { totalNumberRecords: '0' });
         expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
     });
 
     it('refuses every answer without a usable count, as transient: nothing is a whole day then', async () => {
         for (const [status, body, headers] of [
-            [200, '', {}], [204, '', {}], [200, JSON.stringify([detection('d1')]), {}],
+            [200, '', {}], [200, JSON.stringify([detection('d1')]), {}],
             [200, '[]', { totalNumberRecords: 'many' }], [200, '[]', { totalNumberRecords: '-1' }], [200, '[]', { totalNumberRecords: '1.5' }],
         ] as const) {
             answer(status, body, { ...headers });
