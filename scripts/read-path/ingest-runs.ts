@@ -46,7 +46,7 @@ export function isRefused(error: unknown): boolean {
         && (error as Record<PropertyKey, unknown>)[REFUSED] === true;
 }
 
-export type Source = 'maplify' | 'inaturalist' | 'orcasound' | 'register';
+export type Source = 'maplify' | 'inaturalist' | 'orcasound' | 'orcasound-detections' | 'orcahello' | 'register';
 /** A scheduled build's run, or a backfill run by hand, which fails loudly instead. */
 export type Trigger = 'cron' | 'manual';
 
