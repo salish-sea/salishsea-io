@@ -6,13 +6,16 @@
  * A tag is the reporters' own word, normalised only for form: "milled" and "milling" are
  * one tag, "feeding", "foraging" and "hunting" three, because different communities of
  * observers use them. A tag the reporter hedged ("possibly foraging", "possible flip northbound")
- * ends in '?', as an identifier does (decision 054; decision 116's note of 2026-11-25). Each phrase was measured over a year of published reports and the
+ * ends in '?', as an identifier does (decision 054; decision 116's note of 2026-11-25). A "?" right after a phrase makes it possible and hedges
+ * nothing after it; which "?" belongs to a name and which to a phrase is one rule (`ownMarks`),
+ * and a "?" that ends a sentence hedges nothing after it. Each phrase was measured over a year of published reports and the
  * gold set (docs/research/behaviour-in-sighting-text.md, scripts/gold/behaviour.ts); a new
  * one is measured the same way, and checked against the catalogue's nicknames, since a
  * humpback can be called Zig Zag.
  */
 
 import { reaches, rank, type Certainty } from './hedge.ts';
+import { markAfter, nameMarks } from './mentions.ts';
 
 /**
  * A tag and the phrases that say it, matched against the report's text. `inSentence` is
@@ -111,32 +114,49 @@ function isName(text: string, at: number): boolean {
     return /[A-Z][a-z]+\s+$/.test(text.slice(open, at)) || /^\S+\s+[A-Z][a-z]/.test(text.slice(at));
 }
 
+/** Every place a behaviour phrase is said: its tag and where it starts and ends. */
+function phraseMentions(read: string): {tag: string, index: number, end: number}[] {
+    const mentions: {tag: string, index: number, end: number}[] = [];
+    for (const {tag, pattern} of PHRASES) {
+        const every = new RegExp(pattern.source, pattern.flags + 'g');
+        for (const m of read.matchAll(every)) {
+            if (isName(read, m.index) || notNow(read.slice(0, m.index))) continue;
+            mentions.push({tag, index: m.index, end: m.index + m[0].length});
+        }
+    }
+    return mentions;
+}
+
+/**
+ * The positions of every "?" that belongs to a mention in the text: one directly after a
+ * name (a code, a pod or a population) or after a behaviour phrase, with an apostrophe or one
+ * space between (markAfter, src/mentions.ts). Such a "?" makes that mention possible and
+ * hedges nothing after it, so both readers pass the same set to `reaches` (src/hedge.ts).
+ */
+export function ownMarks(text: string): Set<number> {
+    const marks = nameMarks(text);
+    const read = unplace(text);
+    for (const m of phraseMentions(read)) {
+        const at = markAfter(read, m.end);
+        if (at !== null) marks.add(at);
+    }
+    return marks;
+}
+
 /**
  * The tags a text says, in the order of the list. A hedge word before a phrase, in its reach
  * (src/hedge.ts, as for the names a text gives), makes the tag possible, written with a
  * trailing '?' as an identifier is ("possible foraging" is "foraging?"); a probable one
  * ("likely foraging") is plain, as decision 109 writes a code. A "?" right after a phrase
- * makes it possible. A tag the text says plainly anywhere is plain, whatever a hedge on
- * another mention says (decision 054).
+ * makes it possible, and hedges nothing after it. A tag the text says plainly anywhere is
+ * plain, whatever a hedge on another mention says (decision 054). `marks` is the set of "?"
+ * positions that belong to a mention (ownMarks); readText passes the one it computed, and
+ * read alone this computes it, so a name's own "?" ("T65A? foraging") hedges no tag.
  */
-export function readBehaviour(text: string): string[] {
+export function readBehaviour(text: string, marks: ReadonlySet<number> = ownMarks(text)): string[] {
     const read = unplace(text);
-    // A "?" right after a phrase belongs to it and hedges nothing after it.
-    const own = new Set<number>();
-    const mentions: {tag: string, index: number, end: number, own: boolean}[] = [];
-    for (const {tag, pattern} of PHRASES) {
-        const every = new RegExp(pattern.source, pattern.flags + 'g');
-        for (const m of read.matchAll(every)) {
-            if (isName(read, m.index) || notNow(read.slice(0, m.index))) continue;
-            const end = m.index + m[0].length;
-            // the "?" may stand a space apart: "milling ?"
-            const mark = /^ ?\?/.exec(read.slice(end));
-            const asked = mark !== null;
-            if (asked) own.add(end + mark[0].length - 1);
-            mentions.push({tag, index: m.index, end, own: asked});
-        }
-    }
-    const hedges = reaches(read, own);
+    const mentions = phraseMentions(read).map(m => ({...m, own: markAfter(read, m.end) !== null}));
+    const hedges = reaches(read, marks);
     const certainty = new Map<string, Certainty>();
     for (const m of mentions) {
         let level: Certainty = m.own ? 'possible' : 'certain';

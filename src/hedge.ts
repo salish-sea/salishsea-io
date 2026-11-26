@@ -1,15 +1,19 @@
 /**
  * The hedge words in a sighting's text and how far each reaches (decision 054's certainty,
  * decisions 109 and 121 for names, decision 116 for behaviour). One implementation, read by
- * src/sighting-text.ts for the names a text gives and by src/behaviour.ts for the tags.
+ * src/sighting-text.ts for the names a text gives and by src/behaviour.ts for the tags. Both
+ * pass `reaches` the same set of "?" positions that belong to a mention (`ownMarks` in
+ * src/behaviour.ts, the rule in src/mentions.ts), so a mention's own "?" hedges nothing after it.
  */
+
+import { SENTENCE_END, nameEdges } from './mentions.ts';
 
 export type Certainty = 'certain' | 'probable' | 'possible';
 
-export const HEDGE = /\b(likely|possibly|possible|maybe|presumably|presumed|probably|probable|unconfirmed|not (?:sure|certain|positive|100\s*%?))\b|\?/gi;
+export const HEDGE = /\b(likely|possibly|possible|maybe|perhaps|presumably|presumed|probably|probable|unconfirmed|not (?:sure|certain|positive|100\s*%?))\b|\?/gi;
 /** Decision 054's certainty for a hedge word: a strong hedge is probable, a weak one possible. */
 const LEVEL: Record<string, Certainty> = {likely: 'probable', presumably: 'probable', presumed: 'probable', probably: 'probable', probable: 'probable',
-    possibly: 'possible', possible: 'possible', maybe: 'possible', unconfirmed: 'possible', '?': 'possible'};
+    possibly: 'possible', possible: 'possible', maybe: 'possible', perhaps: 'possible', unconfirmed: 'possible', '?': 'possible'};
 export const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] ?? 'possible';
 
 /**
@@ -17,20 +21,59 @@ export const levelOf = (hedge: string): Certainty => LEVEL[hedge.toLowerCase()] 
  * semicolon, closing bracket, "!", line break, "but", or a dash that ends a clause (a
  * hyphen with a space on either side, a doubled one, or a long dash with a space beside
  * it), so "not sure of ID - feeding" doubts the ID, not the feeding. A dash inside a word,
- * a code or a range ("T65-A3", "SW-bound", "4–6") ends nothing.
+ * a code or a range ("T65-A3", "SW-bound", "4–6") ends nothing, and neither does a spaced
+ * hyphen between two names, which continues a list of them: "possibly T36A - T36B" doubts
+ * both. A "?" that ends a sentence (a space and a capital letter after it, or the end of
+ * the text) reaches back to the start of its sentence or its last comma, and nothing after it: "Perhaps it was
+ * Bigg's?" doubts the Bigg's, and "Who is that? Foraging" doubts nothing in the next sentence.
  */
 export type Reach = {from: number, to: number, level: Certainty};
 
+const CLAUSE_END = /[,.;)!\n]|\?(?=\s+[A-Z]|\s*$)|\bbut\b|\s-|-\s|--|\s[–—]|[–—]\s/g;
+/** A "?" is the end of a sentence when a space and a capital letter, or nothing, follows. */
+const ENDS_SENTENCE = /^(?:\s+[A-Z]|\s*$)/;
+
+const SENTENCE_BREAK = new RegExp(String.raw`${SENTENCE_END}|\?(?=\s+[A-Z])|\n|,`, 'g');
+
+/** Where the clause that ends at `end` starts: after the sentence's start or its last comma, as a forward hedge stops at one. */
+function sentenceStart(text: string, end: number): number {
+    let start = 0;
+    for (const m of text.slice(0, end).matchAll(SENTENCE_BREAK)) start = m.index! + m[0].length;
+    return start;
+}
+
+/** Where the stretch a hedge at `from` reaches ends. */
+function clauseEnd(text: string, from: number): number {
+    const rest = text.slice(from);
+    let edges: ReturnType<typeof nameEdges> | undefined;
+    for (const m of rest.matchAll(CLAUSE_END)) {
+        // a spaced hyphen between two names continues a list of names
+        const hyphen = m[0].length !== 2 ? -1 : m[0][0] === '-' ? m.index! : m[0][1] === '-' ? m.index! + 1 : -1;
+        if (hyphen >= 0 && /\s/.test(rest[hyphen - 1] ?? '') && /\s/.test(rest[hyphen + 1] ?? '')) {
+            edges ??= nameEdges(text);
+            const before = text.slice(0, from + hyphen).trimEnd().length, after = from + hyphen + 1 + /^\s*/.exec(rest.slice(hyphen + 1))![0].length;
+            if (edges.ends.has(before) && edges.starts.has(after)) continue;
+        }
+        return from + m.index!;
+    }
+    return text.length;
+}
+
 /**
  * Every hedge in a text with its reach. `skip` holds the positions of a "?" that belongs to
- * the mention before it ("T65A?") and so hedges nothing after it.
+ * a mention before it ("T65A?", "milling?": ownMarks in src/behaviour.ts) and so hedges
+ * nothing after it.
  */
 export function reaches(text: string, skip: ReadonlySet<number> = new Set()): Reach[] {
     const found: Reach[] = [];
     for (const h of text.matchAll(HEDGE)) {
         if (skip.has(h.index!)) continue;
-        const end = text.slice(h.index!).search(/[,.;)!\n]|\bbut\b|\s-|-\s|--|\s[–—]|[–—]\s/);
-        found.push({from: h.index!, to: end < 0 ? text.length : h.index! + end, level: levelOf(h[0])});
+        if (h[0] === '?' && ENDS_SENTENCE.test(text.slice(h.index! + 1))) {
+            // a "?" that ends a sentence asks about the sentence before it: it reaches back to its start
+            found.push({from: sentenceStart(text, h.index!), to: h.index!, level: 'possible'});
+            continue;
+        }
+        found.push({from: h.index!, to: clauseEnd(text, h.index!), level: levelOf(h[0])});
     }
     return found;
 }

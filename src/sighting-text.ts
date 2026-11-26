@@ -18,15 +18,21 @@
  * zeros are dropped while a digit follows ("T065A" is "T65A"), as the register's fold
  * compares codes. A hedge word marks the codes that follow it up to the next comma:
  * "likely" and "presumably" make them probable, "possibly", "maybe", "not sure" and "?"
- * possible (decision 054's certainty); a "?" directly after a name makes only that name
- * possible. Pods are "J pod", "J Pod", "Jpod", "Js", "J and K pods", and are named "J pod"
+ * possible (decision 054's certainty); a "?" directly after a name or a behaviour phrase (one
+ * space may stand between) makes only that mention possible, by the one rule in
+ * src/mentions.ts and src/behaviour.ts (`ownMarks`) that both readers pass to src/hedge.ts, and
+ * a "?" that ends a sentence hedges nothing after it; a spaced hyphen between two names
+ * continues a list, so a hedge reaches both. Pods are "J pod", "J Pod", "Jpod", "Js", "J and K pods", and are named "J pod"
  * as the register labels them; populations are "Biggs", "Bigg's", "transients" ("Bigg's")
  * and "SRKW", "southern residents" ("Southern Resident"). A pod or a population is found
  * where it is written, as a code is, so a hedge reaches it. Codes, pods and populations go
  * through one negation rule: a negated code is absent, while a negated pod or population
  * ("not SRKW", "no J pod or K pod") is dropped from the claims and not recorded as absent;
- * a negated question makes any of them possible, and a question applies to the mentions
- * inside it only. The direction is a compass word or
+ * a negated question makes any of them possible, its own "?" hedging nothing after it, and a
+ * question applies to the mentions inside it only. A negation's list takes pods as written,
+ * "Js, Ks or Ls" included. Where the names are found (the codes, pods and populations) is
+ * src/mentions.ts, and no other pattern recognises a name: the negation's list rule and a
+ * question's comma rule walk those tokens (`orListFrom`, `negatedQuestions` there). The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
  * S") and "facing"; after "now", "then" or "turned", the direction after the cue wins,
@@ -39,7 +45,8 @@
  * records the rows it gets wrong today.
  */
 
-import { readBehaviour, readGroupPart, type GroupPart } from './behaviour.ts';
+import { readBehaviour, readGroupPart, ownMarks, type GroupPart } from './behaviour.ts';
+import { namedCodes, groupTokens, markAfter, LIST_DETERMINER, shortFormAt, POD_JOIN, NEGATION, ASKS, negatedQuestions, orListFrom, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
 import { reaches, rank, type Certainty } from './hedge.ts';
 
 export type { Certainty };
@@ -49,7 +56,7 @@ export type Presence = 'present' | 'absent';
  * ("J pod") or a `population` ("Bigg's", "Southern Resident"). A pod's and a population's
  * names are the register's labels for them, the words a bout's tags use.
  */
-export type ClaimKind = 'code' | 'pod' | 'population';
+export type ClaimKind = NameKind;
 /**
  * One name the text gives: whether it says the animal or group was there, and how sure the
  * reporter was. For a pod or a population `code` holds its name, as a bout's tag has it.
@@ -104,23 +111,7 @@ export function readSighting(body: string): Reading {
     return readText(reportText(body));
 }
 
-// A letter in capitals may stand apart from its number ("T 65", "CRC-56"); one in lower case
-// only touching it ("t46s", "crc22"), or "crc " before one, so a word ending in t or l
-// before a number is not read as a code. A suffix is at most three letter groups ("A1B2s"),
-// so words run together ("T49A1Southbound") are not one.
-const CODE = /\b(?:([TJKL]|CRC|BC[XYZ])\s?-?\s?|([tjkl]|[Cc]rc\s?)(?=\d))?(\d{1,5})(?:-?((?:[A-Za-z]\d*){1,3}))?(s)?\b/g;
-// What may stand between two codes of one list, so a code without its letter takes the letter of the one before.
-const LIST_GAP = /^\s*(?:(?:[,\/&+]|and)\s*)+$/i;
-// "Biggs 36Bs": a code without its letter right after the ecotype's name is a Bigg's code.
-const AFTER_BIGGS = /\b(?:biggs?|bigg['’]s|transients?)[\s:,]*$/i;
 const EXCLUDE = /\(\s*-\s*|\bminus\b|(?<=[A-Za-z0-9]s)\s+-(?=[A-Z])/g;
-// A negation in a sentence, as people write in comments on iNaturalist ("not the T090s
-// actually", "I don't recognize this as any T077 orca"): the codes it governs are absent.
-// "Not sure", "not certain", "not positive" and "not 100%" are hedges, not negations (see
-// HEDGE); "not only", "not just" and "no doubt" affirm; "whether or not" and "if not" say
-// nothing either way. "Never" is not a negation here: "never seen the T65As this far north
-// before" is said of animals that are there.
-const NEGATION = /\b(?:(?<!\b(?:whether\s+or|if)\s+)not(?!\s+(?:sure|certain|positive|100\s*%?|only|just)\b)|no(?!\s+doubt\b)|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\b/gi;
 // What may stand between a negation and the first code it governs: a few words of the
 // same clause, "the", "any", "think this is", "recognize this as any", and no punctuation.
 const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['’]s|is|was|are|were|be|as|actually|from|in|part|recognize|think|believe|see|seen|seeing|either|even|quite|just))*\s+$/i;
@@ -129,53 +120,12 @@ const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['
 // continues the list only inside a parenthesis the negation is in ("(no T049A1, T049A2)")
 // or before a short form ("no T65A, A4"); elsewhere it starts a correction ("Not T090s,
 // T030Bs"), whose codes are present.
-const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
-// A negated question ("Isn't it T65A?") asks rather than says, so its codes are possible,
-// not absent. A question asked with an auxiliary and a pronoun ("isn't it", "aren't they")
-// runs to the end of its sentence, commas and all ("Isn't it T65A, the one with the
-// notch?"). Otherwise the question is the negation's own clause: it ends at a sentence's
-// end, at "but", or at a comma that doesn't continue a list ("or", "and", "nor", "&" or a
-// code), so a later question ("No T65A, is it T65B?") or a distant "?" doesn't touch it.
-// A sentence ends at a semicolon, "!", or a full stop before a capital or the end; an
-// ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
-// A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
-// it T65A, that's for sure"): it never makes its codes absent.
-const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
-const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*(?:[TJKL]|CRC|BC[XYZ])\s?-?\d))[^?])*\?`);
-const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
-const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
-// One item of a negated comma list and where one may start: a code, a pod or a population.
-const LIST_ITEM = String.raw`(?:[A-Z]+\s?-?\d\w*(?:['’]s)?|[JKL]s?\s+[Pp]ods?|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?))`;
-const LIST_ITEM_START = String.raw`(?:[A-Z]+\s?-?\d|[JKL]s?\s+[Pp]ods?|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?))`;
+const NEGATED_LIST = new RegExp(String.raw`^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:${LIST_DETERMINER}\s+)?`, 'i');
 // A code with "'s" is a possessive when a word for the animal's kin, body, range or habits
 // follows, perhaps after one adjective ("not T65A's usual range", "not T65A's new calf",
 // "isn't T65A's boy"): it says nothing about whether the animal was there. Otherwise it
 // is a plural written with an apostrophe ("No T124D's today", "no T65A's spotted").
 const POSSESSIVE = /^['’]s\s+(?:[a-z]+\s+)?(?:son|daughter|boy|girl|calf|calves|baby|kid|offspring|mom|mother|sister|brother|siblings?|family|pod|group|matriline|youngest|oldest|eldest|newest|usual|normal|typical|range|territory|area|home|haunt|dorsal|fin|saddle|markings?|behaviou?r)\b/i;
-
-type Code = {start: number, end: number, text: string, letter: string | null, suffix: string, matriline: boolean};
-
-/** Every code-shaped token in the text, with the letter it carries, if any. */
-function codeTokens(text: string): Code[] {
-    const out: Code[] = [];
-    for (const m of text.matchAll(CODE)) {
-        let [, upper, lower, digits, suffix = '', s] = m;
-        const letter = (upper ?? lower)?.trim().toUpperCase();
-        digits = digits!.replace(/^0+(?=\d)/, '');
-        const whole = m[0];
-        // The suffix pattern eats a trailing matriline s; give it back.
-        if (suffix.endsWith('s')) { suffix = suffix.slice(0, -1); s = 's'; }
-        const matriline = s === 's';
-        // Bare digits with nothing after them are a count, a date or a time, never a code.
-        if (!letter && !suffix && !matriline) continue;
-        // "4 nm", "20 whales" and the like carry no letter; a suffix of real letters is
-        // allowed only when the token's letter is known from context (resolved later).
-        if (!letter && /^[a-z]/.test(suffix)) continue;
-        const code = (letter ?? '') + digits + suffix.toUpperCase() + (matriline ? 's' : '');
-        out.push({start: m.index!, end: m.index! + whole.length, text: code, letter: letter ?? null, suffix: suffix.toUpperCase(), matriline});
-    }
-    return out;
-}
 
 /** The code with its trailing s removed, and the last letter group removed if asked. */
 const base = (code: string, dropLastGroup: boolean) => {
@@ -184,59 +134,9 @@ const base = (code: string, dropLastGroup: boolean) => {
     return b;
 };
 
-// A pod's name: "Js" and "K's", then "J pod", "J Pod" (most of Orca Network's in November
-// 2026), "J AND K PODS", with the "and" of a list in any of the cases reporters write it.
-const POD_PLURAL = /\b([JKL])(?:s|['’]s)\b/g;
-// Letters of a list may touch ("JK pods", "JKL pods") or be joined by a comma, "and", "&", "+" or "/".
-const POD_NAMED = /\b([JKLjkl](?:(?:\s*(?:,\s*(?:[Aa]nd|AND)|,|[Aa]nd|AND|&|\+|\/)\s*)?[JKLjkl])*)\s*-?\s?(?:[Pp]ods?|PODS?)\b/g;
-// What may join two plurals ("Js or Ks") when a "?" after the last reaches back to the first.
-const POD_JOIN = /^\s*(?:(?:[,\/&+]|and|or)\s*)+$/i;
-// A population's name: the plural is as ordinary as the singular, "transients in Haro
-// Strait", "southern residents foraging", and \b after the singular refuses it.
-const BIGGS = /\b(?:biggs|bigg['’]s|transients?)\b/gi;
-const SOUTHERN_RESIDENT = /\b(?:srkws?|southern residents?)\b/gi;
-
-/**
- * One place the text names a pod or a population. The letters of one "J, K and L pods" share
- * a `group` and a hedge scope that starts where the match does; a "Js" is `plural`.
- */
-type Group = {start: number, end: number, text: string, kind: ClaimKind, group?: number, plural?: boolean, scopeStart?: number, scopeEnd?: number};
-
-/** Where the text names a pod or a population, in the register's words (decision 121). */
-function groupTokens(text: string): Group[] {
-    const out: Group[] = [];
-    for (const m of text.matchAll(POD_PLURAL)) out.push({start: m.index!, end: m.index! + m[0].length, text: `${m[1]} pod`, kind: 'pod', plural: true});
-    for (const m of text.matchAll(POD_NAMED)) {
-        const letters = [...m[1]!.matchAll(/[JKLjkl]/g)];
-        letters.forEach((l, i) => out.push({
-            start: m.index! + l.index!,
-            // a "?" after the list belongs to the last pod in it
-            end: i === letters.length - 1 ? m.index! + m[0].length : m.index! + l.index! + 1,
-            text: `${l[0].toUpperCase()} pod`, kind: 'pod',
-            group: m.index!, scopeStart: m.index!, scopeEnd: m.index! + letters[0]!.index! + 1,
-        }));
-    }
-    for (const m of text.matchAll(BIGGS)) out.push({start: m.index!, end: m.index! + m[0].length, text: "Bigg's", kind: 'population'});
-    for (const m of text.matchAll(SOUTHERN_RESIDENT)) out.push({start: m.index!, end: m.index! + m[0].length, text: 'Southern Resident', kind: 'population'});
-    return out.sort((x, y) => x.start - y.start);
-}
-
 /** The text a reader should read (reportText), read. */
 export function readText(text: string): Reading {
-    const tokens = codeTokens(text);
-    // A code without its letter takes the letter of the code before it in a list ("T36,
-    // 36Bs", "T36/36Bs", "CRC 21 and 22"), or T right after the text says Biggs. Anywhere
-    // else it is a count ("spread in 1s to 4s").
-    let previous: Code | null = null;
-    for (const t of tokens) {
-        if (t.letter) { previous = t; continue; }
-        const listed = previous !== null && LIST_GAP.test(text.slice(previous.end, t.start));
-        const letter = listed ? previous!.letter : AFTER_BIGGS.test(text.slice(0, t.start)) ? 'T' : null;
-        if (!letter) { t.text = ''; continue; }
-        t.letter = letter; t.text = letter + t.text;
-        previous = t;
-    }
-    const named = tokens.filter(t => t.text);
+    const named = namedCodes(text);
     const groups = groupTokens(text);
 
     // Exclusions: a cue, then codes or short suffixes up to the next word that is neither.
@@ -288,12 +188,14 @@ export function readText(text: string): Reading {
     // after it, a short form of a code taking its matriline from the code before it ("Not
     // seeing T65A2 & A3"), as an exclusion's does. A negated question ("Isn't it J pod?") makes
     // its names possible instead.
-    const questions: {start: number, end: number}[] = [];
+    // A negated question's spans, for the names inside it; its closing "?" is among the shared marks.
+    const questions = negatedQuestions(text);
+    // The one set of "?" positions that belong to a mention, shared with readBehaviour.
+    const marks = ownMarks(text);
     for (const cue of text.matchAll(NEGATION)) {
         const rest = text.slice(cue.index!);
         const asks = ASKS.test(rest);
-        const question = (asks ? QUESTION_SENTENCE : QUESTION).exec(rest);
-        if (question) { questions.push({start: cue.index!, end: cue.index! + question[0].length}); continue; }
+        if (questions.some(q => q.start === cue.index!)) continue;
         if (asks) continue;
         const first = all.find(t => t.start >= cue.index! + cue[0].length);
         if (!first || !NEGATED_GAP.test(text.slice(cue.index! + cue[0].length, first.start) || ' ')) continue;
@@ -314,8 +216,7 @@ export function readText(text: string): Reading {
             const tok: Name | undefined = all.find(t => t.start === at);
             // "no T65A, T65B or T65C": a comma list that ends in "or" or "nor" is one list
             // "nor" can't start a correction, so it makes a list even after a bare "not"
-            const orList = bareComma
-                && new RegExp(String.raw`^(?:${LIST_ITEM}\s*,\s*)*${LIST_ITEM}\s*,?\s+(?:${bareNot ? 'nor' : 'or|nor'})\s+(?:(?:the|any|any of the|either)\s+)?(?:${LIST_ITEM_START}|[A-H]\b)`).test(text.slice(at));
+            const orList = bareComma && orListFrom(text, all, at, bareNot);
             if (tok && (!bareComma || inParens || orList)) {
                 dropped.add(tok);
                 // a pod written in one list ("J, K pods") is negated together
@@ -331,12 +232,10 @@ export function readText(text: string): Reading {
             // separator ("& B"), but not a word such as "I" or a direction ("E of Lime Kiln");
             // only after a code
             const listed = /[,\/&+]|\b(?:and|or|nor)\b/i.test(gap);
-            const short: RegExpExecArray | null = previous?.kind !== 'code' ? null
-                : /^([A-Z]\d+s?)(?![A-Za-z0-9])/.exec(text.slice(at))
-                    ?? (listed ? /^([A-H])(?![A-Za-z0-9'’])(?!\s*-?\s*(?:of|bound|side|end|shore)\b)/.exec(text.slice(at)) : null);
+            const short: string | null = previous?.kind !== 'code' ? null : shortFormAt(text.slice(at), listed);
             if (short) {
-                const code: string = base(previous!.text, true) + short[1]!;
-                absent.add(code); previous = {start: at, end: at + short[1]!.length, text: code, kind: 'code'}; pos = at + short[1]!.length; continue;
+                const code: string = base(previous!.text, true) + short;
+                absent.add(code); previous = {start: at, end: at + short.length, text: code, kind: 'code'}; pos = at + short.length; continue;
             }
             break;
         }
@@ -356,13 +255,10 @@ export function readText(text: string): Reading {
     // given plainly anywhere is plain (decision 054), whatever a "?" on another mention says.
     // A hedge word reaches every pod of a list through the list's first letter.
     // A plural's apostrophe may stand between a name and its "?": "T46B's?".
-    const markedAt = (n: Name) => /^(?:['’]s)?\?/.exec(text.slice(n.end))?.[0].length;
-    const marks = new Set<number>();
     const marked = names.map(() => false);
     names.forEach((n, i) => {
-        const length = markedAt(n);
-        if (length === undefined) return;
-        marked[i] = true; marks.add(n.end + length - 1);
+        if (markAfter(text, n.end) === null) return;
+        marked[i] = true;
         if (n.group !== undefined) names.forEach((m, j) => { if (m.group === n.group) marked[j] = true; });
         for (let j = i; n.plural && j > 0; j--) {
             const before = names[j - 1]!;
@@ -389,7 +285,7 @@ export function readText(text: string): Reading {
         ...[...absent].map(code => ({code, presence: 'absent' as const, certainty: 'certain' as const, kind: 'code' as const})),
     ];
 
-    return {claims, direction: readDirection(text), behaviour: readBehaviour(text), groupPart: readGroupPart(text)};
+    return {claims, direction: readDirection(text), behaviour: readBehaviour(text, marks), groupPart: readGroupPart(text)};
 }
 
 const FULL: Record<string, string> = {
