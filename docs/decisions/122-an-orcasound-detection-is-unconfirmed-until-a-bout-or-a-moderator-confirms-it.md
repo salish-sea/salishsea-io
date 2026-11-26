@@ -14,7 +14,7 @@ A detection arrives in minutes, which is what a notice to ships needs (120). But
 
 **It arrives unconfirmed.** Its `confirmation` is `unconfirmed` (080) until one of three things confirms it, apart from the cases left open below:
 
-- **It falls in a whale bout:** at the bout's hydrophone, within the bout's span, where the bout is itself a whale occurrence, a `biophony` bout whose tags reach a species (013, [053](053-a-bout-is-one-occurrence-per-species.md)). A bout of vessel noise confirms nothing. orcasite records no link between a detection and a bout, so the build infers one from the hydrophone and the time.
+- **It falls in a whale bout:** at the bout's hydrophone, within the bout's span, where the bout is itself a whale occurrence: a `biophony` bout whose tags reach a cetacean species (013, [053](053-a-bout-is-one-occurrence-per-species.md)). A bout of vessel noise, or of seals, confirms nothing. orcasite records no link between a detection and a bout, so the build infers one from the hydrophone and the time.
 - **An OrcaHello moderator answered yes.** OrcaHello's moderators curate its detections as orcasite's moderators curate bouts. Only OrcaHello's own detections have such a verdict; a listener's have none.
 - **A curator confirms it** in the review view of decision 120, once that is built.
 

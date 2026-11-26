@@ -37,7 +37,7 @@ to ~3–6/mo; the moderator (largely Scott Veirs) is on sabbatical.
 
 An Orcasound **acoustic detection** occurrence is **one `biophony` bout** — located at the
 bout's `feed` coordinates, spanning the bout's `start_time`/`end_time`. `anthrophony` and
-`geophony` bouts are excluded (not organisms), as are raw detections and candidates.
+`geophony` bouts are excluded (not organisms), ~~as are raw detections and candidates~~. *Since 2026-11-25 a detection marked as a whale is an occurrence too; candidates are still excluded. See the [Amendment](#amendment-2026-11-25).*
 
 A bout's **species / ecotype / pod / matriline** is read from **structured upstream tags**, not
 parsed from the free-text `name`.
@@ -65,10 +65,13 @@ Ingest runs within the imperative-shell architecture (decision
 
 ## Rejected alternatives
 
-- **Ingest raw detections.** The finest grain and the only one with an instant timestamp, but
+- ~~**Ingest raw detections.** The finest grain and the only one with an instant timestamp, but
   unvetted: any anonymous button-press, plus vessel/other categories that aren't organisms.
   Putting those on a public map asserts animal presence we can't stand behind. Curated-but-
-  coarse (bouts) beats precise-but-noisy.
+  coarse (bouts) beats precise-but-noisy.~~ *Reversed 2026-11-25 by
+  [122](122-an-orcasound-detection-is-unconfirmed-until-a-bout-or-a-moderator-confirms-it.md):
+  a whale detection is taken, but shown as unconfirmed until a bout, an OrcaHello moderator or a
+  curator confirms it, and withheld once rejected. See the [Amendment](#amendment-2026-11-25).*
 - **Ingest candidates.** The auto-clustered middle tier — still unvetted, and GraphQL-only,
   which would pull us off the documented JSON:API for a lower-quality signal.
 - **Parse the bout `name` downstream.** Feasible (the killer-whale names are informative and
@@ -343,3 +346,12 @@ Register-side contracts this record now depends on:
 [053](053-a-bout-is-one-occurrence-per-species.md) and [054](054-certainty-is-the-asserters-status-is-ours.md). `salish-8vr.18`
 (reconciling `normalize_designation()` with the fold) was open here too, and closed on
 2026-09-23 by [052](052-designations-compared-by-the-registers-fold.md).
+
+## Amendment (2026-11-25)
+
+A detection that a listener or OrcaHello marks as a whale is now an occurrence beside the bouts
+([122](122-an-orcasound-detection-is-unconfirmed-until-a-bout-or-a-moderator-confirms-it.md)).
+The objection above was that a raw detection is unvetted. Decision 122 answers it by showing a
+detection as unconfirmed until a whale bout, an OrcaHello moderator's yes or a curator confirms
+it, and by withholding one that a moderator or curator rejects. Detections of vessels or other
+sounds, and orcasite's candidates, are still excluded. Bouts stay as they are.
