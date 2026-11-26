@@ -217,6 +217,10 @@ describe('reading sighting text', () => {
         const lower = readText('No t65a, t65b or t65c');
         expect(identifierLabels(lower)).toEqual([]);
         expect(absent(lower).sort()).toEqual(['T65A', 'T65B', 'T65C']);
+        const anyOf = readText('No T65A, T65B or any of the T65Cs');
+        expect(identifierLabels(anyOf)).toEqual([]);
+        expect(absent(anyOf).sort()).toEqual(['T65A', 'T65B', 'T65Cs']);
+        expect(identifierLabels(readText('No T65A, T65B or any T65Cs'))).toEqual([]);
         // unchanged: a bare "not" and a comma is a correction, and a comma ends a question's clause
         expect(labels('Not T090s, T030Bs or T037s')).toEqual(['T30Bs', 'T37s']);
     });

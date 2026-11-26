@@ -6,6 +6,9 @@
  * rules, which decide "is this a name" from the tokens found here and from no pattern of their own.
  */
 
+/** The words that may come between "or" and the next name of a negated list: "or the T65Cs", "or any of the T65Cs". Longest first. */
+export const LIST_DETERMINER = String.raw`(?:the|any of the|any|either)`;
+
 /** Where a sentence ends: a semicolon, "!", or a full stop before a capital or the end of the text (not an ellipsis, "i.e.", "e.g." or an abbreviation such as "Pt."). */
 export const SENTENCE_END = String.raw`[;!]|(?<!\.|\b[ie]\.[eg]|\b(?:Pt|Mt|St|Ft|Is|Mr|Dr|No|approx|ca|vs))\.(?!\.)(?=\s+[A-Z]|\s*$)`;
 
@@ -205,7 +208,7 @@ export function orListFrom(text: string, tokens: readonly {start: number, end: n
         if (comma && byStart.has(pos + comma[0].length)) { pos += comma[0].length; continue; }
         break;
     }
-    const join = new RegExp(String.raw`^\s*,?\s+(?:${onlyNor ? 'nor' : 'or|nor'})\s+(?:(?:the|any|any of the|either)\s+)?`, 'i').exec(text.slice(pos));
+    const join = new RegExp(String.raw`^\s*,?\s+(?:${onlyNor ? 'nor' : 'or|nor'})\s+(?:${LIST_DETERMINER}\s+)?`, 'i').exec(text.slice(pos));
     if (!join) return false;
     const next = pos + join[0].length;
     return byStart.has(next) || /^[A-H]\b/.test(text.slice(next));

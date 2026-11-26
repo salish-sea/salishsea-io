@@ -46,7 +46,7 @@
  */
 
 import { readBehaviour, readGroupPart, ownMarks, type GroupPart } from './behaviour.ts';
-import { namedCodes, groupTokens, markAfter, POD_JOIN, NEGATION, ASKS, negatedQuestions, orListFrom, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
+import { namedCodes, groupTokens, markAfter, LIST_DETERMINER, POD_JOIN, NEGATION, ASKS, negatedQuestions, orListFrom, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
 import { reaches, rank, type Certainty } from './hedge.ts';
 
 export type { Certainty };
@@ -120,7 +120,7 @@ const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['
 // continues the list only inside a parenthesis the negation is in ("(no T049A1, T049A2)")
 // or before a short form ("no T65A, A4"); elsewhere it starts a correction ("Not T090s,
 // T030Bs"), whose codes are present.
-const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
+const NEGATED_LIST = new RegExp(String.raw`^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:${LIST_DETERMINER}\s+)?`, 'i');
 // A code with "'s" is a possessive when a word for the animal's kin, body, range or habits
 // follows, perhaps after one adjective ("not T65A's usual range", "not T65A's new calf",
 // "isn't T65A's boy"): it says nothing about whether the animal was there. Otherwise it
