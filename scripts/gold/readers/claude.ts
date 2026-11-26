@@ -40,25 +40,18 @@ export const READING = z.object({
 });
 export type ModelReading = z.infer<typeof READING>;
 
-const CATALOGUE = new URL('../../../data/catalogue/', import.meta.url);
-const tsv = (name: string) => {
-    const [head, ...rows] = readFileSync(new URL(name, CATALOGUE), 'utf8').trim().split('\n').map(l => l.split('\t'));
-    return rows.map(r => Object.fromEntries(head!.map((k, i) => [k, r[i] ?? ''])));
-};
-
-/** The dictionary the model reads with: every code, matriline and nickname the catalogue holds. */
+/**
+ * The dictionary the model reads with: the codes, matrilines and nicknames the catalogue held
+ * on 2026-11-25, frozen in dictionary.txt beside this file. It is frozen because the prompt's
+ * hash keys every saved reading: a dictionary that followed the catalogue would change the
+ * hash whenever a whale was added, and every reading would have to be redone, so a score
+ * would measure the catalogue as well as the reader. To read with a newer dictionary, rewrite
+ * the file on purpose and re-read the gold set. (The catalogue's checked-in files it was
+ * built from went with decision 123, when the Bigg's rows began to be generated from the
+ * register.)
+ */
 export function dictionary(): string {
-    const designations = tsv('designations.tsv');
-    const primary = new Map(designations.filter(d => d.is_primary === 'true').map(d => [d.individual_id, d.code]));
-    const codes = [...new Set(designations.map(d => d.code!))].sort();
-    const matrilines = tsv('social-groups.tsv').filter(g => g.kind === 'matriline').map(g => g.designation + 's').sort();
-    const nicknames = tsv('nicknames.tsv').filter(n => n.individual_id && primary.has(n.individual_id))
-        .map(n => `${n.name} = ${primary.get(n.individual_id)}`).sort();
-    return [
-        `Codes of individual animals the catalogue knows (new ones appear every year, so a code not listed here can still be real):\n${codes.join(' ')}`,
-        `Matrilines (a code with a trailing s names a family):\n${matrilines.join(' ')}`,
-        `Nicknames and the code of the animal they name:\n${nicknames.join('; ')}`,
-    ].join('\n\n');
+    return readFileSync(new URL('dictionary.txt', import.meta.url), 'utf8').replace(/\n$/, '');
 }
 
 export const SYSTEM = `You read one report of a whale sighting from the Salish Sea and say what its text states. The reports come from Orca Network and the public; they are terse and use conventions you must know:
