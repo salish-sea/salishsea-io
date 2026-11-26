@@ -176,6 +176,31 @@ describe("the Bigg's rows are generated from the register too (decision 123)", (
         }
     });
 
+    // As views, every constraint check expanded the whole matriline rule again and the task ran out of
+    // its 64 MB on the real register (review of decision 123). Synthetic data only made that slow, so the
+    // size test below is a smoke test, and this one holds the cause.
+    test("a matriline whose matriarch the register deprecated has no row for her calf's sake", async () => {
+        const conn = await inMemoryRegister({...BIGGS, deprecated: [...BIGGS.deprecated, 'SSA:0014000']});
+        try {
+            await generatedRows(conn);
+            const lines = (await conn.runAndReadAll(`SELECT designation FROM gen_social_groups WHERE kind = 'matriline' ORDER BY id`)).getRows().map(r => r[0]);
+            expect(lines).toEqual(['T100', 'T200', 'T300A']);
+        } finally {
+            conn.closeSync();
+        }
+    });
+
+    test('the generated rows are tables, computed once', async () => {
+        const conn = await inMemoryRegister(BIGGS);
+        try {
+            await generatedRows(conn);
+            const tables = (await conn.runAndReadAll(`SELECT table_name FROM duckdb_tables() WHERE temporary ORDER BY table_name`)).getRows().map(r => r[0]);
+            expect(tables).toEqual(['gen_designations', 'gen_individuals', 'gen_matriline_candidates', 'gen_matrilines', 'gen_members', 'gen_social_groups']);
+        } finally {
+            conn.closeSync();
+        }
+    });
+
     test('the two populations are generated together', async () => {
         const conn = await inMemoryRegister(together(SOUTHERN_RESIDENTS, BIGGS));
         try {
@@ -187,6 +212,48 @@ describe("the Bigg's rows are generated from the register too (decision 123)", (
         }
     });
 });
+
+/**
+ * A Bigg's ecotype the size of the register's own: about 750 animals in 140 lines, 65 sub-lines
+ * inside them, a mother for most animals, and the ancestry of each. The catalogue task has 64 MB.
+ */
+function productionSized(): NonNullable<Fixture> & Required<NonNullable<Fixture>> {
+    const id = (prefix: number, n: number) => `SSA:${String(prefix * 10000 + n).padStart(7, '0')}`;
+    const entities: [string, string, string | null, string][] = [['SSA:0000002', 'group', 'ecotype', "Bigg's"]];
+    const ancestor: [string, string][] = [];
+    const parentage: [string, string][] = [];
+    const matriarchs: [string, string][] = [];
+    let animals = 0;
+    for (let line = 0; line < 140; line++) {
+        const top = id(1, line);
+        entities.push([top, 'group', 'matriline', `T${line + 100}s`]);
+        ancestor.push([top, 'SSA:0000002']);
+        const members: string[] = [];
+        for (let k = 0; k < (line < 50 ? 6 : 5); k++) {
+            const animal = id(2, animals++);
+            members.push(animal);
+            entities.push([animal, 'individual', null, `T${line + 100}${String.fromCharCode(65 + k)}`]);
+            ancestor.push([animal, top], [animal, 'SSA:0000002']);
+            if (k > 0) parentage.push([animal, members[0]!]);
+        }
+        matriarchs.push([top, members[0]!]);
+        // sub-lines nested four deep, the way the register nests a family's branches
+        if (line < 65) {
+            let outer = top;
+            const chain: string[] = [top];
+            for (const [depth, take] of [[1, 4], [2, 3], [3, 2], [4, 1]] as const) {
+                const sub = id(2 + depth, line);
+                entities.push([sub, 'group', 'matriline', `T${line + 100}${'WXYZ'[depth - 1]}s`]);
+                for (const above of new Set([outer, ...chain])) ancestor.push([sub, above]);
+                ancestor.push([sub, 'SSA:0000002']);
+                chain.push(sub);
+                for (const animal of members.slice(1, 1 + take)) ancestor.push([animal, sub]);
+                outer = sub;
+            }
+        }
+    }
+    return {entities, ancestor, parentage, matriarchs, deprecated: []};
+}
 
 /** A catalogue directory holding the files that are not generated: parties and haul-outs as checked in, and the given designations and nicknames. */
 async function catalogueDir(parent: string, designations: string[][], nicknames: string[][]): Promise<string> {
@@ -264,6 +331,9 @@ describe("the checked-in designations and nicknames are keyed by register identi
         const dir = await catalogueDir(parent, [
             ['1', 'SSA:0019999', 'AB5', 'alaska', 'active', 'false', 'true', ''],
             ['', 'SSA:0019998', 'T999', 'bc_wa', 'uncertain', 'true', 'true', ''],
+            // an override that gives T100 another code than the register's, and a row with no is_primary
+            ['', 'SSA:0011000', 'T101', 'bc_wa', 'uncertain', 'true', 'true', ''],
+            ['3', 'SSA:0011002', 'X1', 'alaska', 'active', '', 'true', ''],
         ], [
             // the T190s line has one animal and no row, so a nickname on it has nothing to attach to
             ['1', 'SSA:0001002', 'Lonely', 'official', '1', '', ''],
@@ -271,8 +341,23 @@ describe("the checked-in designations and nicknames are keyed by register identi
         const loaded = await loadFixture(parent, together(SOUTHERN_RESIDENTS, BIGGS), dir);
         const error = 'error' in loaded ? loaded.error : '';
         expect(error).toMatch(/designations.tsv names an entity that is no generated animal \(entity_id\/code\): SSA:0019999\/AB5, SSA:0019998\/T999/);
+        expect(error).toMatch(/gives a primary designation a code other than the register's \(entity_id\/code\/register's code\): SSA:0011000\/T101\/T100/);
+        expect(error).toMatch(/designations.tsv leaves is_primary empty \(entity_id\/code\): SSA:0011002\/X1/);
         expect(error).toMatch(/nicknames.tsv names an entity that is no generated animal or group \(id\/entity_id\): 1\/SSA:0001002/);
     }));
+
+    test('a register the size of the real one loads within the catalogue task\'s 64 MB', () => withTempDir(async parent => {
+        const biggs = productionSized();
+        // as many nicknames as the checked-in file holds, six of them on lines
+        const named = biggs.entities.filter(([, kind]) => kind === 'individual').slice(0, 397).map(([entity]) => entity)
+            .concat(biggs.entities.filter(([, kind, , label]) => kind === 'group' && /^T\d+s$/.test(label)).slice(0, 6).map(([entity]) => entity));
+        const dir = await catalogueDir(parent, [], named.map((entity, i) => [String(i + 1), entity, `Name ${i + 1}`, 'official', '1', '', '']));
+        const loaded = await loadFixture(parent, biggs, dir);
+        if ('error' in loaded) throw new Error(loaded.error);
+        expect(loaded.docs['individuals']).toHaveLength(750);
+        expect(loaded.docs['social_groups']!.length).toBeGreaterThan(200);
+        expect(loaded.docs['nicknames']).toHaveLength(403);
+    }), 120_000);
 
     test("a register that records no mother for any of a generated population's animals is refused (guard)", () => withTempDir(async parent => {
         const dir = await catalogueDir(parent, [], []);
@@ -317,6 +402,30 @@ describe('the catalogue as documents (decision 064)', () => {
             }
             expect(Object.entries(CATALOGUE).filter(([, {file}]) => file === null).map(([table]) => table))
                 .toEqual(['individuals', 'social_groups']);
+        } finally {
+            conn.closeSync();
+        }
+    });
+
+    test('the checked-in designations and nicknames name register entities, and their overrides look like the designations they override', async () => {
+        const conn = await (await DuckDBInstance.create(':memory:')).connect();
+        try {
+            const rows = async (table: string) => (await conn.runAndReadAll(
+                `SELECT * FROM ${readTsv(path.join(CATALOGUE_DIR, CATALOGUE[table]!.file!), fileColumns(table))}`)).getRowObjectsJS();
+            const designations = await rows('designations');
+            const nicknames = await rows('nicknames');
+            for (const row of [...designations, ...nicknames]) expect(row['entity_id'], JSON.stringify(row)).toMatch(/^SSA:\d{7}$/);
+            const overrides = designations.filter(d => d['is_primary'] === true);
+            const others = designations.filter(d => d['is_primary'] === false);
+            expect(overrides.length + others.length).toBe(designations.length);
+            expect(overrides.length).toBeGreaterThan(0);
+            for (const d of overrides) expect(d['code'], JSON.stringify(d)).toMatch(/^[A-Z]+\d+[A-Z0-9]*$/);
+            expect(overrides.every(d => d['id'] === null), 'a primary designation is generated, so its row holds no id').toBe(true);
+            expect(others.every(d => d['id'] !== null), 'any other designation holds its own id').toBe(true);
+            const unique = (values: unknown[]) => new Set(values).size === values.length;
+            expect(unique(overrides.map(d => d['entity_id'])), 'one override per animal').toBe(true);
+            expect(unique(designations.map(d => d['code'])), 'a code once').toBe(true);
+            expect(unique(nicknames.map(n => `${n['entity_id']}/${n['name']}`)), 'a name once per entity').toBe(true);
         } finally {
             conn.closeSync();
         }

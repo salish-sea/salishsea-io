@@ -173,7 +173,7 @@ const generatedId = (column: string) => `CAST(${GENERATED_ID_BASE} + CAST(substr
 const GENERATED_GROUP_KINDS = ['ecotype', 'community', 'pod', 'matriline'];
 
 /**
- * Temp views `gen_individuals`, `gen_designations` and `gen_social_groups`: the generated
+ * Temp tables `gen_individuals`, `gen_designations` and `gen_social_groups`: the generated
  * rows, in their tables' columns. A matriline's designation is its matriarch's code, as the
  * Bigg's rows have it (T065A for the T065As), and a pod's is its letter (J for J pod):
  * the pages add the word. A mother, matriarch or member the register deprecated is left
@@ -187,17 +187,19 @@ const GENERATED_GROUP_KINDS = ['ecotype', 'community', 'pod', 'matriline'];
  * inside it that also qualifies. Members are counted by descent (register.ancestor), not
  * only those placed directly in the line, and leave out deprecated animals. The register
  * gives every Bigg's T-number a line of its own, and a line of one whale would only repeat
- * that whale's page. A matriarch's calf is what makes a line a line even when the register
+ * that whale's page. (They are tables, not views: every constraint check reads them again, and
+ * a view would expand the whole matriline rule each time, which exhausts the task's 64 MB.)
+ * A matriarch's calf is what makes a line a line even when the register
  * places the calf elsewhere (K28s holds K28 alone, and her calf K39 sits in K pod).
  */
 export async function generatedRows(conn: DuckDBConnection): Promise<void> {
     const roots = GENERATED_POPULATIONS.map(id => `'${id}'`).join(', ');
-    await conn.run(`CREATE TEMP VIEW gen_members AS
+    await conn.run(`CREATE TEMP TABLE gen_members AS
         SELECT entity_id FROM (
             SELECT entity_id FROM register.ancestor WHERE ancestor_id IN (${roots})
             UNION SELECT unnest([${roots}]) AS entity_id)
         WHERE entity_id NOT IN (SELECT entity_id FROM register.deprecations)`);
-    await conn.run(`CREATE TEMP VIEW gen_individuals AS
+    await conn.run(`CREATE TEMP TABLE gen_individuals AS
         SELECT ${generatedId('e.entity_id')} AS id, e.entity_id, e.label AS primary_designation,
                ${generatedId('p.parent_id')} AS mother_id, 'presumed' AS maternity_certainty,
                CAST(NULL AS INTEGER) AS father_id, CAST(NULL AS VARCHAR) AS paternity_certainty
@@ -206,13 +208,13 @@ export async function generatedRows(conn: DuckDBConnection): Promise<void> {
         LEFT JOIN register.parentage p ON p.child_id = e.entity_id AND p.role = 'mother'
             AND p.parent_id IN (SELECT entity_id FROM gen_members)
         WHERE e.kind = 'individual'`);
-    await conn.run(`CREATE TEMP VIEW gen_designations AS
+    await conn.run(`CREATE TEMP TABLE gen_designations AS
         SELECT id, id AS individual_id, primary_designation AS code, 'bc_wa' AS scheme, 'active' AS status,
                true AS is_primary, true AS in_catalog, CAST(NULL AS INTEGER) AS superseded_by,
                CAST(NULL AS INTEGER) AS authority_id
         FROM gen_individuals`);
     // The lines that qualify on their own, with how many animals each holds by descent.
-    await conn.run(`CREATE TEMP VIEW gen_matriline_candidates AS
+    await conn.run(`CREATE TEMP TABLE gen_matriline_candidates AS
         WITH sizes AS (
             SELECT a.ancestor_id AS matriline_id, count(*) AS members
             FROM register.ancestor a
@@ -226,17 +228,18 @@ export async function generatedRows(conn: DuckDBConnection): Promise<void> {
         WHERE e.kind = 'group' AND r.rank = 'matriline'
           AND (coalesce(s.members, 0) >= 2 OR EXISTS (
               SELECT 1 FROM register.matriarchs m
+              JOIN gen_members alive ON alive.entity_id = m.matriarch_id
               JOIN register.parentage p ON p.parent_id = m.matriarch_id AND p.role = 'mother'
               JOIN gen_individuals calf ON calf.entity_id = p.child_id
               WHERE m.matriline_id = e.entity_id))`);
     // A line inside another holds a subset of its animals, so equal counts mean equal sets.
-    await conn.run(`CREATE TEMP VIEW gen_matrilines AS
+    await conn.run(`CREATE TEMP TABLE gen_matrilines AS
         SELECT entity_id FROM gen_matriline_candidates outer_line
         WHERE NOT EXISTS (
             SELECT 1 FROM register.ancestor a
             JOIN gen_matriline_candidates nested ON nested.entity_id = a.entity_id
             WHERE a.ancestor_id = outer_line.entity_id AND nested.members = outer_line.members)`);
-    await conn.run(`CREATE TEMP VIEW gen_social_groups AS
+    await conn.run(`CREATE TEMP TABLE gen_social_groups AS
         SELECT ${generatedId('e.entity_id')} AS id, r.rank AS kind,
                CASE r.rank
                    WHEN 'matriline' THEN coalesce(matriarch.label, regexp_replace(e.label, 's$', ''))
@@ -260,7 +263,8 @@ export async function generatedRows(conn: DuckDBConnection): Promise<void> {
  * The populations that have animals but none with a recorded mother. Decision 123 reads
  * the Bigg's mothers from the register, which records them from its edition with animals
  * ADR-0028 on; a register without them would strip every Bigg's whale of its mother, so the
- * build refuses it rather than publish that.
+ * build refuses it rather than publish that. It catches only a release with no mothers at
+ * all, not one that lost some.
  */
 async function populationsWithoutMothers(conn: DuckDBConnection): Promise<string[]> {
     const rows = (await conn.runAndReadAll(`
@@ -287,8 +291,14 @@ async function unresolvedFileRows(conn: DuckDBConnection): Promise<string[]> {
     await list('designations.tsv names an entity that is no generated animal (entity_id/code)',
         `SELECT entity_id, code FROM file_designations WHERE entity_id IS NULL
          OR entity_id NOT IN (SELECT entity_id FROM gen_individuals)`);
+    await list('designations.tsv leaves is_primary empty (entity_id/code)',
+        `SELECT entity_id, code FROM file_designations WHERE is_primary IS NULL`);
+    await list("designations.tsv gives a primary designation a code other than the register's (entity_id/code/register's code)",
+        `SELECT f.entity_id, f.code, i.primary_designation FROM file_designations f
+         JOIN gen_individuals i ON i.entity_id = f.entity_id
+         WHERE f.is_primary AND f.code IS DISTINCT FROM i.primary_designation`);
     await list('designations.tsv gives no id to a designation that is not primary (entity_id/code)',
-        `SELECT entity_id, code FROM file_designations WHERE NOT is_primary AND id IS NULL`);
+        `SELECT entity_id, code FROM file_designations WHERE is_primary = false AND id IS NULL`);
     await list('designations.tsv overrides one animal\'s primary designation more than once (entity_id)',
         `SELECT entity_id FROM file_designations WHERE is_primary GROUP BY entity_id HAVING count(*) > 1`);
     await list('nicknames.tsv names an entity that is no generated animal or group (id/entity_id)',
@@ -319,7 +329,7 @@ const ROWS: Readonly<Record<string, string>> = {
                CASE WHEN f.status = 'superseded' THEN i.id END, f.authority_id
         FROM file_designations f
         JOIN gen_individuals i ON i.entity_id = f.entity_id
-        WHERE NOT f.is_primary`,
+        WHERE f.is_primary = false`,
     // A nickname's entity is an animal or a group: the file's one column, resolved.
     nicknames: `
         SELECT f.id, i.id AS individual_id, g.id AS social_group_id, f.name, f.status, f.namer_id, f.named_year, f.theme
@@ -431,24 +441,38 @@ export async function registerVitals(conn: DuckDBConnection, individuals: string
     }));
 }
 
+/**
+ * Generate the rows from the register attached as `register` and read the checked-in files of
+ * `dir` into temp views `file_<table>`; the problems that would make the catalogue task fail,
+ * described: a header that isn't the file's, a population without mothers, or a checked-in
+ * row that names an animal or group no generated row stands for. The task runs it, and so does
+ * the register's ingest on a candidate edition before adopting it, so a release that would
+ * break a checked-in row is refused there rather than stopping the build after it is adopted.
+ */
+export async function checkedInProblems(conn: DuckDBConnection, dir = CATALOGUE_DIR): Promise<string[]> {
+    await generatedRows(conn);
+    const found: string[] = [];
+    const missingMothers = await populationsWithoutMothers(conn);
+    if (missingMothers.length)
+        found.push(`the register edition records no mother for any animal of ${missingMothers.join(', ')}; `
+            + 'the catalogue would publish them without mothers (decision 123)');
+    for (const [table, {file}] of Object.entries(CATALOGUE)) {
+        if (file === null) continue;
+        assertHeader(path.join(dir, file), fileColumns(table));
+        await conn.run(`CREATE TEMP VIEW file_${table} AS SELECT * FROM ${readTsv(path.join(dir, file), fileColumns(table))}`);
+    }
+    return [...found, ...await unresolvedFileRows(conn)];
+}
+
 /** Load every catalogue table into `store.snapshot`, replacing what was there, in one transaction. */
 export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Promise<Record<string, number>> {
     return withSnapshot(snapshot, {memory: '64MB', write: true}, async conn => {
         await attachRegister(conn, registerFile(snapshot));
-        await generatedRows(conn);
-        const missingMothers = await populationsWithoutMothers(conn);
-        if (missingMothers.length)
-            throw new Error(`the register edition records no mother for any animal of ${missingMothers.join(', ')}; `
-                + 'the catalogue would publish them without mothers (decision 123)');
-        for (const [table, {file}] of Object.entries(CATALOGUE)) {
-            if (file === null) continue;
-            assertHeader(path.join(dir, file), fileColumns(table));
-            await conn.run(`CREATE TEMP VIEW file_${table} AS SELECT * FROM ${readTsv(path.join(dir, file), fileColumns(table))}`);
-        }
+        const problems = await checkedInProblems(conn, dir);
         const list = (table: string) => CATALOGUE[table]!.columns.map(([name]) => name).join(', ');
         for (const table of Object.keys(CATALOGUE))
             await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list(table)} FROM (${ROWS[table] ?? `SELECT * FROM file_${table}`})`);
-        const broken = [...await unresolvedFileRows(conn), ...await violations(conn)];
+        const broken = [...problems, ...await violations(conn)];
         if (broken.length) throw new Error(`the catalogue breaks what Postgres enforced:\n  ${broken.join('\n  ')}`);
         const vitals = await registerVitals(conn, 'cat_individuals');
         const docs: Record<string, string[]> = {};

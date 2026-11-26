@@ -23,6 +23,10 @@
  * (check-maplify-names.ts) stays as the backstop for what this misses, a pair the mirror
  * doesn't hold this run. A curator accepts an un-naming in data/maplify-unnamed.tsv.
  *
+ * A release is also refused when it would break a row of the checked-in catalogue (the designations
+ * and nicknames, which name register entities; decision 123): the same checks the catalogue task
+ * runs (catalogue.ts), asked of the candidate, so the task never meets a release it must fail on.
+ *
  * `--tag`, or REGISTER_TAG in the environment (how an operator sets it on the Fly machine),
  * holds the build at, or rolls it back to, one edition, as the workflow's input does.
  * Under Stelis it writes the boundary receipt (STELIS_BOUNDARY_RECEIPT).
@@ -41,6 +45,7 @@ import { fetchEdition, REPO } from '../register/edition.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
 import { readUnnamed } from '../register/unnamed.ts';
 import type { Named } from './check-maplify-names.ts';
+import { checkedInProblems } from './catalogue.ts';
 import { budget, sqlString } from './duckdb-budget.ts';
 import { boundaryReceipt, markRefused, recordedRun } from './ingest-runs.ts';
 import { attachRegister } from './register-file.ts';
@@ -156,21 +161,49 @@ async function heldNames(conn: DuckDBConnection): Promise<Named[]> {
     });
 }
 
+/** Create every table of REGISTER_TABLES in the database attached as `catalog`, from an unpacked edition; the rows written. */
+async function loadTables(conn: DuckDBConnection, catalog: string, dir: string): Promise<number> {
+    let rows = 0;
+    for (const {table, dir: sub, file: name, select} of REGISTER_TABLES) {
+        const tsv = path.join(dir, sub, `${name ?? table}.tsv`).replaceAll("'", "''");
+        // the register's TSVs carry no quoting, and an empty cell is NULL (edition.ts)
+        await conn.run(`CREATE TABLE ${catalog}.${table} AS SELECT ${select}
+            FROM read_csv('${tsv}', delim = '\t', header = true, quote = '', escape = '', nullstr = '', all_varchar = true)`);
+        rows += Number((await conn.runAndReadAll(`SELECT count(*) FROM ${catalog}.${table}`)).getRows()[0]![0]);
+    }
+    return rows;
+}
+
 /** Write an unpacked edition's tables, and which edition it is, as the register file. */
 async function adopt(conn: DuckDBConnection, file: string, dir: string, tag: string, digest: string): Promise<number> {
     let rows = 0;
     await replaceFile(conn, file, async () => {
-        for (const {table, dir: sub, file: name, select} of REGISTER_TABLES) {
-            const tsv = path.join(dir, sub, `${name ?? table}.tsv`).replaceAll("'", "''");
-            // the register's TSVs carry no quoting, and an empty cell is NULL (edition.ts)
-            await conn.run(`CREATE TABLE fresh.${table} AS SELECT ${select}
-                FROM read_csv('${tsv}', delim = '\t', header = true, quote = '', escape = '', nullstr = '', all_varchar = true)`);
-            rows += Number((await conn.runAndReadAll(`SELECT count(*) FROM fresh.${table}`)).getRows()[0]![0]);
-        }
+        rows = await loadTables(conn, 'fresh', dir);
         await conn.run(`CREATE TABLE fresh.edition AS
             SELECT ${sqlString(tag)} AS tag, '${digest}' AS sha256`);
     });
     return rows;
+}
+
+/**
+ * The checked-in catalogue rows (designations and nicknames, which name register entities)
+ * that an unpacked edition would leave pointing at nothing: a whale it deprecates or
+ * renames, or a nicknamed matriline it takes below decision 123's rule. The catalogue task
+ * asks the same question of the edition it holds (checkedInProblems), so one that fails
+ * there is refused here, before it is adopted, and the build goes on with the edition it has.
+ */
+export async function catalogueProblems(dir: string, catalogueDir?: string): Promise<string[]> {
+    const db = await DuckDBInstance.create(':memory:');
+    const conn = await db.connect();
+    try {
+        await conn.run("SET memory_limit = '512MB'; SET threads = 1");
+        await conn.run("ATTACH ':memory:' AS register");
+        await loadTables(conn, 'register', dir);
+        return await checkedInProblems(conn, catalogueDir);
+    } finally {
+        conn.closeSync();
+        db.closeSync();
+    }
 }
 
 export async function main(): Promise<void> {
@@ -239,6 +272,12 @@ export async function main(): Promise<void> {
                         + `pair(s) ${held ? `edition ${held} names` : 'the held register names'}: ${pairs.join('; ')}. `
                         + 'Accept in data/maplify-unnamed.tsv, or fix the register.'));
                 }
+                // The same refusal for a release that would break a checked-in catalogue row.
+                const broken = await catalogueProblems(dir);
+                if (broken.length > 0)
+                    throw markRefused(new Error(`register ${tag} refused: it breaks the checked-in catalogue `
+                        + `(data/catalogue/), so the catalogue task would fail on it:\n  ${broken.join('\n  ')}\n`
+                        + `The build keeps ${held ? `edition ${held}` : 'the held register'}. Fix data/catalogue/, or the register.`));
                 const rows = await adopt(conn, file, dir, tag, digest);
                 say(`register ${tag}: adopted (${held ? `was ${held}` : 'no edition held before'}), ${rows} rows`);
                 return rows;
