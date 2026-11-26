@@ -24,16 +24,27 @@ export type Mirrors = {
 const ALIASES = {maplify: 'maplify_mirror', inaturalist: 'inaturalist_mirror', orcasound: 'orcasound'} as const;
 const DETECTION_ALIASES = {orcasite: 'orcasound_detections', orcahello: 'orcahello'} as const;
 
-export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): Promise<void> {
+/**
+ * Attach the mirrors and read their views. Returns whether the detections' two mirrors
+ * were attached and read: false when none was given, and also when they could not be (a
+ * derivation that runs before the first ingest has made the files, or a file that has lost
+ * a table), which is said and costs build.detections only, never the occurrences.
+ */
+export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): Promise<boolean> {
     await conn.run('INSTALL sqlite; LOAD sqlite');
     for (const [source, alias] of Object.entries(ALIASES) as [keyof typeof ALIASES, string][])
         await conn.run(`ATTACH ${sqlString(mirrors[source])} AS ${alias} (TYPE sqlite, READ_ONLY)`);
     await conn.run(await readFile(new URL('./sources.sql', import.meta.url), 'utf8'));
     await conn.run(await readFile(new URL('./source-taxa.sql', import.meta.url), 'utf8'));
-    if (mirrors.detections) {
+    if (!mirrors.detections) return false;
+    try {
         for (const [source, alias] of Object.entries(DETECTION_ALIASES) as [keyof typeof DETECTION_ALIASES, string][])
             await conn.run(`ATTACH ${sqlString(mirrors.detections[source])} AS ${alias} (TYPE sqlite, READ_ONLY)`);
         await conn.run(await readFile(new URL('./detection-sources.sql', import.meta.url), 'utf8'));
+        return true;
+    } catch (error) {
+        console.error(`build.detections: the detections' mirrors can't be read, so it is not derived this run: ${String(error)}`);
+        return false;
     }
 }
 

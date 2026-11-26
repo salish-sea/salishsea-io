@@ -63,7 +63,11 @@ export async function fetchDetectionsWindow(window: IngestWindow, log: Logger): 
         const result = parseDetectionsPage(raw);
         if (!result.ok) throw new Error(`orcasound detections parse failed on page ${pages + 1}: ${result.error}`);
         pages++;
-        // The count comes with every page; the first one's is the one the offsets were laid out by.
+        // The count comes with every page; the first one's is the one the offsets were laid out by,
+        // so a count that moves while paging means rows came or went between pages: the window
+        // is not one answer, and nothing is written for it.
+        if (result.total !== null && total !== null && result.total !== total)
+            throw new Error(`orcasite's count for ${window.start}..${window.end} changed from ${total} to ${result.total} while paging; nothing written`);
         total ??= result.total;
         for (const d of result.detections) byId.set(d.id, d);
         for (const f of result.feeds) feeds.set(f.id, f);

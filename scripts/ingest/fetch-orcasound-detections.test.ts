@@ -73,6 +73,12 @@ describe('fetchDetectionsWindow', () => {
         await expect(fetchDetectionsWindow(window, noopLog)).rejects.toThrow(/counted 3 detections .* but 2 came back/);
     });
 
+    it('refuses a window whose count moves while it is paged, though the rows add up to the last count', async () => {
+        const second = 'https://live.orcasound.net/api/json/detections?page[offset]=250';
+        stubFetch({ [windowUrl(window)]: page(['det_1', 'det_2'], second, 3), [second]: page(['det_3', 'det_4'], null, 4) });
+        await expect(fetchDetectionsWindow(window, noopLog)).rejects.toThrow(/changed from 3 to 4 while paging/);
+    });
+
     it('refuses an answer that was not counted', async () => {
         stubFetch({ [windowUrl(window)]: page(['det_1'], null, null) });
         await expect(fetchDetectionsWindow(window, noopLog)).rejects.toThrow(/did not say how many/);

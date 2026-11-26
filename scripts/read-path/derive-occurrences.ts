@@ -214,7 +214,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         await conn.run('SET preserve_insertion_order = false');
         await conn.run('USE store');
         await attachRegister(conn, registerFile(snapshot));
-        await attachSources(conn, mirrors);
+        let detectionsOn = await attachSources(conn, mirrors);
         await conn.run(shared);
         await conn.run(lookups);
         await conn.run(maplifyCollection);
@@ -233,7 +233,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         const present = await tablePresent('occurrences');
         // build.detections comes with the orcasound arm, so a store that lacks it, as one built
         // before it existed does, is derived whole once.
-        const detectionsPresent = !mirrors.detections || await tablePresent('detections');
+        const detectionsPresent = !detectionsOn || await tablePresent('detections');
         // Told, but every arm goes anyway: say why, since the engine's own line lists
         // what changed and the two are read side by side.
         const chosen: Arms = !present ? {all: 'no table yet to replace into'}
@@ -258,7 +258,14 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
             if (readsText(source)) await writeReadings(conn, source);
             await conn.run(parts.arms[source]);
             await writePlaces(conn, source, regions, landmarks);
-            if (source === 'orcasound' && mirrors.detections) await conn.run(detectionsSql);
+            if (source === 'orcasound' && detectionsOn) {
+                // The detections are not what the site is built from: a failure here is said, and
+                // costs them (the last build.detections stays), not the occurrences.
+                try { await conn.run(detectionsSql); } catch (error) {
+                    detectionsOn = false;
+                    console.error(`build.detections: not derived this run, the last one stays: ${String(error)}`);
+                }
+            }
         }
         // A full run REPLACES the table, so a column added here reaches the file on the
         // volume; a partial one replaces its arms' rows in place.
@@ -293,8 +300,11 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         }
         // The detections, derived over the orcasound arm's view, a table of their own: replaced
         // whole whenever the arm is, since a bout's confirmation or an answer can change any of them.
-        if (mirrors.detections && arms.includes('orcasound'))
-            await conn.run('CREATE OR REPLACE TABLE build.detections AS SELECT * FROM detections_derived');
+        if (detectionsOn && arms.includes('orcasound')) {
+            try { await conn.run('CREATE OR REPLACE TABLE build.detections AS SELECT * FROM detections_derived'); } catch (error) {
+                console.error(`build.detections: not derived this run, the last one stays: ${String(error)}`);
+            }
+        }
         // Rows replaced in place leave dead rows in the file until a checkpoint compacts
         // them; a save every half-minute would otherwise grow the snapshot on the volume.
         if (!all) await conn.run('CHECKPOINT store');

@@ -30,7 +30,7 @@
 --      no slack either side, whose occurrence for a cetacean is confirmed (080, 053), a bout
 --      of a species only possibly heard being unconfirmed. The taxon is that species. A bout
 --      with several confirmed cetacean species gives the one the detector's claim is under, else
---      the lowest register identifier. A bout still open (no end) has no span yet;
+--      the lowest register identifier. A bout still open (no end) has no span yet; of several bouts that span it, one with a confirmed cetacean comes first;
 --   4. otherwise unconfirmed, and the taxon is the detector's claim.
 -- `basis` says which step decided: 'orcahello', 'bout', or null for the last.
 
@@ -85,7 +85,11 @@ CREATE OR REPLACE TEMP VIEW detections_derived AS
     FROM detection_base b
     JOIN source_acoustic_bouts bo
       ON bo.feed_id = b.feed_id AND b.observed_at >= bo.started_at AND b.observed_at <= bo.ended_at
-    QUALIFY row_number() OVER (PARTITION BY b.id ORDER BY bo.started_at, bo.id) = 1
+    -- Several bouts can span one moment (moderators' spans overlap): one that confirms a
+    -- cetacean first, so a bout that only possibly heard one doesn't hide one that did; then the
+    -- earliest started.
+    QUALIFY row_number() OVER (PARTITION BY b.id
+      ORDER BY bo.id IN (SELECT bout_id FROM confirmed_bout_species) DESC, bo.started_at, bo.id) = 1
   ),
   bout_taxon AS (
     SELECT b.id, s.entity_id

@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchOrcaHelloDay, fetchPage, pageUrl, RECORDS_PER_PAGE } from './fetch-orcahello.ts';
+import { fetchOrcaHelloDay, fetchPage, MAX_TOTAL, pageUrl, RECORDS_PER_PAGE } from './fetch-orcahello.ts';
 import { isTransientUpstream } from './retry.ts';
 
 const noopLog = () => {};
@@ -83,6 +83,53 @@ describe('fetchOrcaHelloDay', () => {
     });
 });
 
+describe('fetchOrcaHelloDay against an API that misbehaves', () => {
+    const run = (getPage: (url: string) => Promise<{body: unknown, total: number | null}>, onPage: (rows: readonly unknown[]) => void = () => {}, maxPages?: number) =>
+        fetchOrcaHelloDay('2026-11-20', noopLog, onPage, { pauseMs: 0, getPage, ...(maxPages ? { maxPages } : {}) });
+
+    it('stops when a page adds nothing new, as an API that ignores Page would give', async () => {
+        let asked = 0;
+        const result = await run(() => { asked++; return Promise.resolve({ body: ids(0, RECORDS_PER_PAGE), total: 400 }); });
+        expect(asked).toBe(2);
+        expect(result).toEqual({ total: 400, fetched: 50 });
+    });
+
+    it('refuses a count above the bound before a second page', async () => {
+        let asked = 0;
+        const attempt = run(() => { asked++; return Promise.resolve({ body: ids(0, RECORDS_PER_PAGE), total: MAX_TOTAL + 1 }); });
+        await expect(attempt).rejects.toThrow(/ignored the day/);
+        await expect(attempt.catch(e => isTransientUpstream(e))).resolves.toBe(true);
+        expect(asked).toBe(1); // the first page's count refused it: no second page
+    });
+
+    it('refuses a detection outside the day and the day either side of it, keeping nothing from that page', async () => {
+        const handed: number[] = [];
+        const stray = { ...detection('stray'), timestamp: '2026-11-25T23:00:00Z' };
+        const ok = { ...detection('ok'), timestamp: '2026-11-19T23:00:00Z' };
+        await expect(run(() => Promise.resolve({ body: [ok, stray, { ...detection('far'), timestamp: '2026-10-01T00:00:00Z' }], total: 3 }), () => { handed.push(1); }))
+            .rejects.toThrow(/stray at 2026-11-25/);
+        expect(handed).toEqual([]);
+        // the day before and the day after are allowed: the range has no time zone
+        expect(await run(() => Promise.resolve({ body: [ok, { ...detection('after'), timestamp: '2026-11-21T01:00:00Z' }], total: 2 })))
+            .toEqual({ total: 2, fetched: 2 });
+    });
+
+    it('keeps the largest count seen on any page', async () => {
+        const pages = [ids(0, RECORDS_PER_PAGE), ids(50, RECORDS_PER_PAGE), ids(100, 10)];
+        let n = 0;
+        const result = await run(() => Promise.resolve({ body: pages[n], total: [50 + 50, 160, 150][n++]! }));
+        // the first page said 100; the second said 160; so the day is not whole at 110
+        expect(result).toEqual({ total: 160, fetched: 110 });
+    });
+
+    it('throws, and does not report the day complete, when it runs out of pages', async () => {
+        let n = 0;
+        const attempt = run(() => Promise.resolve({ body: ids(50 * n++, RECORDS_PER_PAGE), total: 1000 }), () => {}, 3);
+        await expect(attempt).rejects.toThrow(/without finishing/);
+        await expect(attempt.catch(e => isTransientUpstream(e))).resolves.toBe(true);
+    });
+});
+
 describe('fetchPage', () => {
     const answer = (status: number, body = '', headers: Record<string, string> = {}) =>
         vi.stubGlobal('fetch', () => Promise.resolve(new Response(status === 204 ? null : body, { status, headers })));
@@ -90,6 +137,14 @@ describe('fetchPage', () => {
     it('reads the body and the total from the header', async () => {
         answer(200, JSON.stringify([detection('d1')]), { totalNumberRecords: '286' });
         expect(await fetchPage('https://aifororcasdetections.azurewebsites.net/api/detections')).toEqual({ body: [detection('d1')], total: 286 });
+    });
+
+    it('does not take a blank body for an empty day when the count says otherwise', async () => {
+        answer(200, '', { totalNumberRecords: '286' });
+        await expect(fetchPage('https://example.org/')).rejects.toThrow(/empty body for a page of 286/);
+        await expect(fetchPage('https://example.org/').catch(e => isTransientUpstream(e))).resolves.toBe(true);
+        answer(200, '', { totalNumberRecords: '0' });
+        expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
     });
 
     it('takes 204 and an empty body as no detections', async () => {
