@@ -31,7 +31,8 @@
  * a negated question makes any of them possible, its own "?" hedging nothing after it, and a
  * question applies to the mentions inside it only. A negation's list takes pods as written,
  * "Js, Ks or Ls" included. Where the names are found (the codes, pods and populations) is
- * src/mentions.ts. The direction is a compass word or
+ * src/mentions.ts, and no other pattern recognises a name: the negation's list rule and a
+ * question's comma rule walk those tokens (`orListFrom`, `negatedQuestions` there). The direction is a compass word or
  * abbreviation, "NB", "SW bound", "trending N", ignoring a bearing ("north of Alki",
  * "1/2 mile southeast of"), a place name ("West Point"), a spread ("north to south", "N to
  * S") and "facing"; after "now", "then" or "turned", the direction after the cue wins,
@@ -45,7 +46,7 @@
  */
 
 import { readBehaviour, readGroupPart, ownMarks, type GroupPart } from './behaviour.ts';
-import { namedCodes, groupTokens, markAfter, POD_JOIN, NEGATION, ASKS, negatedQuestions, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
+import { namedCodes, groupTokens, markAfter, POD_JOIN, NEGATION, ASKS, negatedQuestions, orListFrom, SENTENCE_END, type Code, type Group, type NameKind } from './mentions.ts';
 import { reaches, rank, type Certainty } from './hedge.ts';
 
 export type { Certainty };
@@ -120,9 +121,6 @@ const NEGATED_GAP = /^(?:\s+(?:the|a|an|any|one|of|this|that|these|those|it|it['
 // or before a short form ("no T65A, A4"); elsewhere it starts a correction ("Not T090s,
 // T030Bs"), whose codes are present.
 const NEGATED_LIST = /^\s*(?:(?:[,\/&+]|and|or|nor)\s*)*(?:the\s+)?/i;
-// One item of a negated comma list and where one may start: a code, a pod or a population.
-const LIST_ITEM = String.raw`(?:[A-Z]+\s?-?\d\w*(?:['’]s)?|[JKL]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?))`;
-const LIST_ITEM_START = String.raw`(?:[A-Z]+\s?-?\d|[JKL]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?))`;
 // A code with "'s" is a possessive when a word for the animal's kin, body, range or habits
 // follows, perhaps after one adjective ("not T65A's usual range", "not T65A's new calf",
 // "isn't T65A's boy"): it says nothing about whether the animal was there. Otherwise it
@@ -218,8 +216,7 @@ export function readText(text: string): Reading {
             const tok: Name | undefined = all.find(t => t.start === at);
             // "no T65A, T65B or T65C": a comma list that ends in "or" or "nor" is one list
             // "nor" can't start a correction, so it makes a list even after a bare "not"
-            const orList = bareComma
-                && new RegExp(String.raw`^(?:${LIST_ITEM}\s*,\s*)*${LIST_ITEM}\s*,?\s+(?:${bareNot ? 'nor' : 'or|nor'})\s+(?:(?:the|any|any of the|either)\s+)?(?:${LIST_ITEM_START}|[A-H]\b)`).test(text.slice(at));
+            const orList = bareComma && orListFrom(text, all, at, bareNot);
             if (tok && (!bareComma || inParens || orList)) {
                 dropped.add(tok);
                 // a pod written in one list ("J, K pods") is negated together

@@ -210,6 +210,17 @@ describe('reading sighting text', () => {
         expect(readText(text).behaviour).toEqual(['foraging']);
     });
 
+    test('a negation reads lists and questions of names by the parsers\' own tokens', () => {
+        const labels = (text: string) => identifierLabels(readText(text));
+        expect(labels('No Js, K POD or L POD')).toEqual([]);
+        expect(labels('No Jpod, Kpod or Lpod?')).toEqual(['J pod?', 'K pod?', 'L pod?']);
+        const lower = readText('No t65a, t65b or t65c');
+        expect(identifierLabels(lower)).toEqual([]);
+        expect(absent(lower).sort()).toEqual(['T65A', 'T65B', 'T65C']);
+        // unchanged: a bare "not" and a comma is a correction, and a comma ends a question's clause
+        expect(labels('Not T090s, T030Bs or T037s')).toEqual(['T30Bs', 'T37s']);
+    });
+
     test('a "?" belongs to the one mention before it, a name or a behaviour (one rule for both readers)', () => {
         const read = (text: string) => ({labels: identifierLabels(readText(text)), tags: readText(text).behaviour});
         expect(read('T65A? foraging')).toEqual({labels: ['T65A?'], tags: ['foraging']});

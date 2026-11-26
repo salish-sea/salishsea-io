@@ -2,7 +2,8 @@
  * Where a text names an animal or a group: the catalogue codes, the pods and the populations
  * (decision 121), found as src/sighting-text.ts reads them and as src/behaviour.ts and
  * src/hedge.ts need them, so a "?" that belongs to a mention is found in one place.
- * Imports nothing, so every reader may import it.
+ * Imports nothing, so every reader may import it. It also holds the negation and question
+ * rules, which decide "is this a name" from the tokens found here and from no pattern of their own.
  */
 
 /** Where a sentence ends: a semicolon, "!", or a full stop before a capital or the end of the text (not an ellipsis, "i.e.", "e.g." or an abbreviation such as "Pt."). */
@@ -82,9 +83,6 @@ export function groupTokens(text: string): Group[] {
     return out.sort((x, y) => x.start - y.start);
 }
 
-/** Where a name may start, as a pattern for a regular expression: a code, a pod or a population. */
-const NAME_START = String.raw`(?:(?:[TJKL]|CRC|BC[XYZ])\s?-?\d|[JKLjkl]s?\s+[Pp]ods?|[JKL](?:s|['’]s)\b|(?:[Bb]iggs?|[Bb]igg['’]s|[Tt]ransients?|SRKWs?|[Ss]outhern\s+[Rr]esidents?)\b)`;
-
 /**
  * The catalogue codes in a text, each with the letter it carries. A code without its letter
  * takes the letter of the code before it in a list ("T36, 36Bs", "T36/36Bs", "CRC 21 and 22"),
@@ -145,9 +143,34 @@ export const NEGATION = /\b(?:(?<!\b(?:whether\s+or|if)\s+)not(?!\s+(?:sure|cert
 // ellipsis, "i.e.", "e.g." and an abbreviation such as "Pt." or "approx." don't end it.
 // A question asked with an auxiliary and a pronoun is one even without its "?" ("Isn't
 // it T65A, that's for sure"): it never makes its codes absent.
-const QUESTION = new RegExp(String.raw`^(?:(?!\b[Bb]ut\b|${SENTENCE_END}|,(?!\s*(?:[Oo]r|[Aa]nd|[Nn]or|&)\b|\s*${NAME_START}))[^?])*\?`);
-const QUESTION_SENTENCE = new RegExp(String.raw`^(?:(?!${SENTENCE_END})[^?])*\?`);
 export const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['’]t|doesn['’]t|didn['’]t)\s+(?:it|that|this|these|those|they|he|she|you)\b/i;
+
+const STOP_SENTENCE = new RegExp(SENTENCE_END, 'y');
+const STOP_BUT = /\bbut\b/iy;
+const KEEPS_GOING = /\s*(?:or|and|nor|&)\b/iy;
+
+/**
+ * Where the "?" closing a question that starts at `from` is, or null. A question asked with an
+ * auxiliary and a pronoun runs to the end of its sentence, commas and all; any other is the
+ * negation's own clause, and ends at a sentence's end, at "but", or at a comma that doesn't
+ * continue a list ("or", "and", "nor", "&", or a name: `starts` holds where names start).
+ */
+function questionClose(text: string, from: number, wholeSentence: boolean, starts: ReadonlySet<number>): number | null {
+    for (let i = from; i < text.length; i++) {
+        if (text[i] === '?') return i;
+        STOP_SENTENCE.lastIndex = i;
+        if (STOP_SENTENCE.test(text)) return null;
+        if (wholeSentence) continue;
+        STOP_BUT.lastIndex = i;
+        if (STOP_BUT.test(text)) return null;
+        if (text[i] === ',') {
+            KEEPS_GOING.lastIndex = i + 1;
+            const after = i + 1 + /^\s*/.exec(text.slice(i + 1))![0].length;
+            if (!KEEPS_GOING.test(text) && !starts.has(after)) return null;
+        }
+    }
+    return null;
+}
 
 /**
  * The spans of the negated questions in a text: from a negation to the "?" that closes its
@@ -155,12 +178,37 @@ export const ASKS = /^(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|don['�
  */
 export function negatedQuestions(text: string): {start: number, end: number}[] {
     const out: {start: number, end: number}[] = [];
+    let starts: Set<number> | undefined;
     for (const cue of text.matchAll(NEGATION)) {
-        const rest = text.slice(cue.index!);
-        const question = (ASKS.test(rest) ? QUESTION_SENTENCE : QUESTION).exec(rest);
-        if (question) out.push({start: cue.index!, end: cue.index! + question[0].length});
+        starts ??= nameEdges(text).starts;
+        const close = questionClose(text, cue.index!, ASKS.test(text.slice(cue.index!)), starts);
+        if (close !== null) out.push({start: cue.index!, end: close + 1});
     }
     return out;
+}
+
+/**
+ * Whether the names a negation governs go on as a list that ends in "or" or "nor", from `at`:
+ * names (a name may take a plural's apostrophe) separated by commas, a comma and then the "or",
+ * then a name, or a matriline's letter alone ("no T65A, T65B or A4"). `tokens` are the names
+ * the parsers found. A bare "not" followed by a comma is a correction ("Not T090s, T030Bs or
+ * T037s"), and only "nor" makes it a list.
+ */
+export function orListFrom(text: string, tokens: readonly {start: number, end: number}[], at: number, onlyNor: boolean): boolean {
+    const byStart = new Map(tokens.map(t => [t.start, t]));
+    let pos = at;
+    for (;;) {
+        const tok = byStart.get(pos);
+        if (!tok) return false;
+        pos = tok.end + (/^['’]s/.exec(text.slice(tok.end))?.[0].length ?? 0);
+        const comma = /^\s*,\s*/.exec(text.slice(pos));
+        if (comma && byStart.has(pos + comma[0].length)) { pos += comma[0].length; continue; }
+        break;
+    }
+    const join = new RegExp(String.raw`^\s*,?\s+(?:${onlyNor ? 'nor' : 'or|nor'})\s+(?:(?:the|any|any of the|either)\s+)?`, 'i').exec(text.slice(pos));
+    if (!join) return false;
+    const next = pos + join[0].length;
+    return byStart.has(next) || /^[A-H]\b/.test(text.slice(next));
 }
 
 /** Whether a name (a code, a pod or a population) starts at `at` or ends at `at`, read from the same tokens the readers use. */
