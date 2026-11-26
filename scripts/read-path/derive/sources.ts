@@ -5,6 +5,7 @@
  */
 
 import type { DuckDBConnection } from '@duckdb/node-api';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { sqlString } from '../duckdb-budget.ts';
 
@@ -37,13 +38,24 @@ export async function attachSources(conn: DuckDBConnection, mirrors: Mirrors): P
     await conn.run(await readFile(new URL('./sources.sql', import.meta.url), 'utf8'));
     await conn.run(await readFile(new URL('./source-taxa.sql', import.meta.url), 'utf8'));
     if (!mirrors.detections) return false;
+    const attached: string[] = [];
     try {
-        for (const [source, alias] of Object.entries(DETECTION_ALIASES) as [keyof typeof DETECTION_ALIASES, string][])
+        for (const [source, alias] of Object.entries(DETECTION_ALIASES) as [keyof typeof DETECTION_ALIASES, string][]) {
+            // DuckDB attaches a file that isn't there without complaint and fails at its first read, and
+            // a database it can't open stays in the catalog, failing every query that lists them.
+            if (!existsSync(mirrors.detections[source])) throw new Error(`${mirrors.detections[source]} doesn't exist yet`);
             await conn.run(`ATTACH ${sqlString(mirrors.detections[source])} AS ${alias} (TYPE sqlite, READ_ONLY)`);
+            attached.push(alias);
+        }
+        // DuckDB opens a mirror lazily, so a file that isn't there only fails at its first read:
+        // read each table now, inside the try.
+        for (const table of ['orcasound_detections.detections', 'orcasound_detections.feeds', 'orcahello.detections'])
+            await conn.run(`SELECT 1 FROM ${table} LIMIT 0`);
         await conn.run(await readFile(new URL('./detection-sources.sql', import.meta.url), 'utf8'));
         return true;
     } catch (error) {
         console.error(`build.detections: the detections' mirrors can't be read, so it is not derived this run: ${String(error)}`);
+        for (const alias of attached) await conn.run(`DETACH ${alias}`).catch(() => undefined);
         return false;
     }
 }

@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { DatabaseSync } from 'node:sqlite';
 
@@ -506,7 +506,13 @@ describe('the derivations over the fixture', () => {
                         VALUES ('bout_twin0000000000000003', 'feed_02u8r4EOo8cuSHdC7xDqMI', 'Bush Point', -122.6040035, 48.0336664,
                         '2026-09-20T10:00:00Z', '2026-09-20T11:00:00Z', 'Two species', 'biophony');
                     INSERT INTO bout_entities (bout_id, entity_id, certainty) VALUES ('bout_twin0000000000000003', 'SSA:0000900', 'certain'),
-                        ('bout_twin0000000000000003', 'SSA:0000901', 'certain')`);
+                        ('bout_twin0000000000000003', 'SSA:0000901', 'certain');
+                    -- and one that spans the same moments, started earlier, whose orca is only possible:
+                    -- the detections fall in both, and take the bout that confirms
+                    INSERT INTO bouts (id, feed_id, feed_name, lon, lat, started_at, ended_at, title, category)
+                        VALUES ('bout_twin0000000000000004', 'feed_02u8r4EOo8cuSHdC7xDqMI', 'Bush Point', -122.6040035, 48.0336664,
+                        '2026-09-20T09:50:00Z', '2026-09-20T11:10:00Z', 'Faint', 'biophony');
+                    INSERT INTO bout_entities (bout_id, entity_id, certainty) VALUES ('bout_twin0000000000000004', 'SSA:0000900', 'possible')`);
             } finally { orcasound.close(); }
             const detections = new DatabaseSync(mirrors.detections!.orcasite);
             const orcahello = new DatabaseSync(mirrors.detections!.orcahello);
@@ -534,6 +540,35 @@ describe('the derivations over the fixture', () => {
             ]);
             // a change only to the detections' mirrors re-derives the same arm, and only it
             expect((await deriveOccurrences(snapshot, mirrors, ['orcahello.detections'])).arms).toEqual(['orcasound']);
+
+            // A store that has build.occurrences but no build.detections, as one built before they
+            // existed does, is derived whole even when told only a native input changed.
+            const drop = async (sql: string) => {
+                const db = await DuckDBInstance.create(':memory:');
+                const conn = await db.connect();
+                try { await conn.run(`ATTACH '${snapshot}' AS store`); await conn.run(sql); } finally { conn.closeSync(); db.closeSync(); }
+            };
+            await drop('DROP TABLE store.build.detections');
+            expect((await deriveOccurrences(snapshot, mirrors, ['public.observations'])).arms).toBe('all');
+            const kept = await query('SELECT count(*) FROM store.build.detections');
+            expect(Number(kept[0]![0])).toBe(16);
+
+            // A failure building them costs them, not the occurrences: the mirror has lost a table,
+            // the occurrences are derived as ever, and the last build.detections stays.
+            const lost = new DatabaseSync(mirrors.detections!.orcahello);
+            try { lost.exec('DROP TABLE detections'); } finally { lost.close(); }
+            const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+            expect((await deriveOccurrences(snapshot, mirrors, ['orcasound.bouts'])).arms).toEqual(['orcasound']);
+            expect(errors).toHaveBeenCalledWith(expect.stringMatching(/build\.detections: .*not derived this run/));
+            expect(await query('SELECT count(*) FROM store.build.detections')).toEqual(kept);
+            expect(Number((await query(`SELECT count(*) FROM store.build.occurrences WHERE source = 'orcasound'`))[0]![0])).toBeGreaterThan(0);
+
+            // And before the first ingest has made the mirrors, a derivation still derives the occurrences.
+            const early = {...mirrors, detections: {orcasite: path.join(dir, 'not-yet.sqlite'), orcahello: path.join(dir, 'not-yet-either.sqlite')}};
+            await drop('DROP TABLE store.build.detections');
+            expect((await deriveOccurrences(snapshot, early, null)).arms).toBe('all');
+            expect(await query(`SELECT count(*) FROM information_schema.tables WHERE table_schema = 'build' AND table_name = 'detections'`)).toEqual([[0n]]);
+            errors.mockRestore();
         } finally {
             await rm(dir, {recursive: true, force: true});
         }

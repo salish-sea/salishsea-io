@@ -85,11 +85,12 @@ CREATE OR REPLACE TEMP VIEW detections_derived AS
     FROM detection_base b
     JOIN source_acoustic_bouts bo
       ON bo.feed_id = b.feed_id AND b.observed_at >= bo.started_at AND b.observed_at <= bo.ended_at
+    LEFT JOIN (SELECT DISTINCT bout_id FROM confirmed_bout_species) cb ON cb.bout_id = bo.id
     -- Several bouts can span one moment (moderators' spans overlap): one that confirms a
     -- cetacean first, so a bout that only possibly heard one doesn't hide one that did; then the
     -- earliest started.
     QUALIFY row_number() OVER (PARTITION BY b.id
-      ORDER BY bo.id IN (SELECT bout_id FROM confirmed_bout_species) DESC, bo.started_at, bo.id) = 1
+      ORDER BY cb.bout_id IS NOT NULL DESC, bo.started_at, bo.id) = 1
   ),
   bout_taxon AS (
     SELECT b.id, s.entity_id
