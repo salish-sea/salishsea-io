@@ -156,7 +156,7 @@ export function buildSearchIndex(t: Inputs): SearchIndex {
         }, sighting('group', g['id']));
     });
     const populations = [...t.social_groups].filter(g => isPopulation({kind: g['kind']}) && g['entity_id']).sort(byId).map(g => {
-        const label = populationLabel({designation: g['designation']});
+        const label = populationLabel({entity_id: g['entity_id'], designation: g['designation']});
         return withLatest({
             kind: 'population',
             label,

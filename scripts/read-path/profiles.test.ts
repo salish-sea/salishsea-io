@@ -57,12 +57,12 @@ function tables(): Tables {
         parties: [{id: 1, name: 'Some Researcher', kind: 'person', url: 'https://example.org'}],
         social_groups: [
             {id: 100, kind: 'matriline', anchor_individual_id: 1, designation: 'T065A', entity_id: 'SSA:0020001', designation_folded: 't65a', notes: 'VERBATIM SHEET TEXT'},
-            {id: 200, kind: 'ecotype', anchor_individual_id: null, designation: 'Biggs', entity_id: 'SSA:0000901', designation_folded: 'biggs', notes: 'ECOTYPE SHEET TEXT'},
+            {id: 200, kind: 'ecotype', anchor_individual_id: null, designation: "Bigg's", entity_id: 'SSA:0000002', designation_folded: 'biggs', notes: 'ECOTYPE SHEET TEXT'},
             {id: 101, kind: 'matriline', anchor_individual_id: 2, designation: 'T065A2', entity_id: null, designation_folded: 't65a2', notes: null},
         ],
         group_parents: [{group_id: 100, parent_group_id: 200}],
         matriline_members: [1, 2, 3, 4].map(id => ({group_id: 100, individual_id: id, innermost_group_id: 100})),
-        animal_names: [{entity_id: 'SSA:0000901', common_name: "Bigg's killer whale", taxon_entity_id: null, taxon_common_name: null, inaturalist_scientific_name: null}],
+        animal_names: [{entity_id: 'SSA:0000002', common_name: "Bigg's killer whale", taxon_entity_id: null, taxon_common_name: null, inaturalist_scientific_name: null}],
         individual_occurrences: [
             {individual_id: 1, occurrence_id: 'maplify:1', observed_at: '2026-09-04T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: 'T065A'},
             {individual_id: 1, occurrence_id: 'maplify:1', observed_at: '2026-09-04T20:00:00+00:00', location: {lon: -123, lat: 48.5}, is_present: true, status: 'candidate', via_group: null},
@@ -247,7 +247,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     const biggs = () => assembleEcotypes(tables())[0]!;
 
     test('one page per ecotype, listing the matrilines beneath it, and its pooled links', () => {
-        expect(assembleEcotypes(tables()).map(p => p.id)).toEqual(['0000901']);
+        expect(assembleEcotypes(tables()).map(p => p.id)).toEqual(['0000002']);
         expect(biggs().data.matrilines.map(g => g.designation)).toEqual(['T065A']);
         expect(biggs().links.map(l => l.occurrence_id)).toEqual(['maplify:3']);
     });
@@ -255,7 +255,7 @@ describe('assembleEcotypes and renderEcotypePage', () => {
     test('the link preview, and no notes', () => {
         const doc = renderEcotypePage(SHELL, biggs(), 2026);
         expect(doc).toContain("<title>Bigg's (transient) killer whales · SalishSea.io</title>");
-        expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000901/Biggs">');
+        expect(doc).toContain('<link rel="canonical" href="https://salishsea.io/populations/0000002/Biggs">');
         expect(doc).toContain('<h1>Bigg&#39;s (transient) killer whales</h1>');
         expect(doc).not.toContain('ECOTYPE SHEET TEXT');
     });
@@ -336,7 +336,7 @@ const withSouthernResidents = () => {
 describe("a community's population page, and the Southern Residents' chain beneath it (decision 070)", () => {
     test("the community's page is a population's, beside the Bigg's, its matrilines found through their pods", () => {
         const pages = assembleEcotypes(withSouthernResidents());
-        expect(pages.map(p => p.id)).toEqual(['0000901', '0000010']);
+        expect(pages.map(p => p.id)).toEqual(['0000002', '0000010']);
         const page = pages[1]!;
         expect(page.data.matrilines.map(g => g.designation)).toEqual(['J31']);
         const doc = renderEcotypePage(SHELL, page, 2026);

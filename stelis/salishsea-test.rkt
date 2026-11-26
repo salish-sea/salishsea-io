@@ -66,7 +66,7 @@
   (check-eq? (producer-of salishsea-graph v) 'derive-catalogue (format "~a is derived" v)))
 (for ([v (in-list '(individuals-snapshot designations-snapshot social-groups-snapshot
                     nicknames-snapshot parties-snapshot haulouts-snapshot))])
-  (check-eq? (producer-of salishsea-graph v) 'catalogue (format "~a comes from its checked-in file" v)))
+  (check-eq? (producer-of salishsea-graph v) 'catalogue (format "~a comes from the catalogue task" v)))
 (for ([file (in-list (filter (lambda (a) (regexp-match? #rx"^catalogue/" (symbol->string a)))
                              (inputs-of 'catalogue)))])
   (check-eq? (artifact-provenance (hash-ref (graph-artifacts salishsea-graph) file)) 'authoritative)
@@ -79,7 +79,10 @@
                  "an individual's vitals are the register's")
 (check-not-false (memq 'register.status_dates (inputs-of 'catalogue))
                  "the year of a death is the register's")
-;; The Southern Residents' rows are generated from the register (salishsea decision 070).
+;; The Southern Residents' and the Bigg's rows are generated from the register (salishsea
+;; decisions 070 and 123), so the individuals and the social groups have no checked-in file.
+(for ([f (in-list '(catalogue/individuals.tsv catalogue/social-groups.tsv))])
+  (check-false (memq f (inputs-of 'catalogue)) (format "~a is generated, not checked in" f)))
 (for ([t (in-list '(register.entities register.ancestor register.deprecations
                     register.group_ranks register.parentage register.matriarchs))])
   (check-not-false (memq t (inputs-of 'catalogue)) (format "the catalogue generates rows from ~a" t)))
@@ -170,8 +173,13 @@
 (for ([r (in-list '(register.entities register.names register.mappings register.ancestor
                     register.deprecations register.classification register.edition))])
   (check-eq? (producer-of salishsea-ingest-graph r) 'ingest-register (format "~a comes from the release" r)))
-(check-equal? (ingest-inputs-of 'ingest-register) '(maplify_mirror.sightings maplify-unnamed.tsv)
-              "it judges a new edition by the Maplify pairs and the curator's allow-list")
+(check-equal? (ingest-inputs-of 'ingest-register)
+              '(maplify_mirror.sightings maplify-unnamed.tsv
+                catalogue/designations.tsv catalogue/nicknames.tsv catalogue/parties.tsv catalogue/haulouts.tsv
+                reference/providers.tsv reference/organizations.tsv reference/collections.tsv
+                reference/maplify-collection-rules.tsv reference/enums.tsv reference/hydrophones.tsv)
+              (string-append "it judges a new edition by the Maplify pairs and the curator's allow-list, "
+                             "and by the checked-in catalogue the catalogue task would load (decision 123)"))
 (check-eq? (task-kind (hash-ref (graph-tasks salishsea-ingest-graph) 'ingest-register)) 'boundary)
 (check-equal? (task-kind (hash-ref (graph-tasks salishsea-graph) 'maplify-names)) 'gate)
 ;; its baseline is a checked-in file (salishsea decision 083), changed by a pull request

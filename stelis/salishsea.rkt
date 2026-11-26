@@ -17,8 +17,9 @@
 ;;                                             │    un-names a Maplify pair; decision 064)
 ;;   reference ─▶ the reference tables ────────┤   (checked-in files under data/
 ;;                                             │    reference/, decision 064)
-;;   catalogue ─▶ the catalogue ───────────────┤   (checked-in files under data/
-;;                                             │    catalogue/, decision 064)
+;;   catalogue ─▶ the catalogue ───────────────┤   (generated from the register, and
+;;                                             │    checked-in files under data/
+;;                                             │    catalogue/, decisions 064, 123)
 ;;   snapshot ──▶ what Postgres still holds ───┤   (what users write: native sightings,
 ;;   (boundary)   (native sightings)           │    photos, contributors, identifications)
 ;;       │                                     │
@@ -225,19 +226,21 @@
 (define catalogue-relations (map snapshot-relation catalogue-tables))
 
 ;; Three of them are views over the register (salishsea decision 064, salish-9uu.2.3):
-;; the build derives them from its own register (derive-catalogue). The rest are ours,
-;; checked in under salishsea's data/catalogue/ and loaded by the catalogue task, which
-;; computes what Postgres derived (the folded codes, an individual's vitals from the
-;; register). All keep their snapshot names, which the pages read; the snapshot task
-;; copies none of them.
+;; the build derives them from its own register (derive-catalogue). The rest the catalogue
+;; task writes: the individuals and social groups are generated whole from the register
+;; (salishsea decision 123), and the designations, nicknames, parties and haul-out sites are
+;; in part ours, checked in under salishsea's data/catalogue/ (the designations and
+;; nicknames keyed by register identifier). The task computes what Postgres derived (the
+;; folded codes, an individual's vitals from the register). All keep their snapshot names,
+;; which the pages read; the snapshot task copies none of them.
 (define catalogue-register-views '("group_parents" "matriline_members" "animal_names"))
 (define catalogue-view-relations (map snapshot-relation catalogue-register-views))
 (define catalogue-file-relations
   (filter (lambda (r) (not (memq r catalogue-view-relations))) catalogue-relations))
-;; Each table's file, a declared input nobody in the graph writes.
+;; The files that hold what is ours, each a declared input nobody in the graph writes. The
+;; individuals and the social groups have none: every row of them is generated.
 (define catalogue-files
-  '(catalogue/individuals.tsv catalogue/designations.tsv catalogue/nicknames.tsv
-    catalogue/parties.tsv catalogue/social-groups.tsv catalogue/haulouts.tsv))
+  '(catalogue/designations.tsv catalogue/nicknames.tsv catalogue/parties.tsv catalogue/haulouts.tsv))
 
 ;; What the occurrences were derived from in Postgres (salishsea decision 061,
 ;; salish-xv35.1): every table the five views behind derived.occurrences read, the
@@ -272,8 +275,8 @@
     ;; whales page (salish-nkbq)
     "register.taxon_ancestor"
     ;; each group's rank, each animal's mother, and the matriarch each matriline is
-    ;; named for: what the catalogue generates the Southern Residents' rows from
-    ;; (salishsea decision 070, salish-lzi.2)
+    ;; named for: what the catalogue generates the Southern Residents' and the Bigg's rows from
+    ;; (salishsea decisions 070 and 123)
     "register.group_ranks" "register.parentage" "register.matriarchs"))
 (define register-relations (map string->symbol register-tables))
 
@@ -647,10 +650,12 @@
    ;; which tag is newest every run, a fetch only when it moved. An edition that would
    ;; un-name a Maplify pair the held edition names is refused before it is adopted — the
    ;; Maplify mirror's pairs and the curator's allow-list are the inputs that question
-   ;; reads — and the build goes on with the edition it holds, the run log and heartbeat
-   ;; saying why. The name guard below stays as the backstop.
+   ;; reads — and so is an edition the catalogue task would fail on (decision 123): the
+   ;; checked-in catalogue files and the reference tables are what that check reads. Either
+   ;; way the build goes on with the edition it holds, the run log and heartbeat saying
+   ;; why. The name guard below stays as the backstop.
    (make-task 'ingest-register 'boundary
-              #:inputs '(maplify_mirror.sightings maplify-unnamed.tsv)
+              #:inputs (append '(maplify_mirror.sightings maplify-unnamed.tsv) catalogue-files reference-files)
               #:outputs (cons 'register.edition register-relations)
               #:invoke (node-script/code "scripts/read-path/ingest-register.ts"
                                  '()
@@ -726,14 +731,15 @@
               #:inputs '(build.occurrences social-groups-snapshot designations-snapshot)
               #:outputs '(build.occurrence_identifier_candidates)
               #:invoke (snapshot-script "derive-identifier-candidates.ts"))
-   ;; The catalogue from its checked-in files (salish-9uu.2.3), with what Postgres derived
-   ;; computed here: the folded codes, and each individual's vitals from the register.
+   ;; The catalogue from the register and its checked-in files (salish-9uu.2.3, decision 123),
+   ;; with what Postgres derived computed here: the folded codes, and each individual's vitals
+   ;; from the register.
    (make-task 'catalogue 'transform
               ;; types.enums: the vocabularies its files are held to, as Postgres's enum
               ;; types held its columns (with its NOT NULLs, uniques, foreign keys, CHECKs)
               ;; and the register's entities, ancestry, deprecations, group ranks, mothers
-              ;; and matriarchs: what the Southern Residents' rows are generated from
-              ;; (salishsea decision 070, salish-lzi.3)
+              ;; and matriarchs: what the Southern Residents' and the Bigg's rows are generated from
+              ;; (salishsea decisions 070 and 123, salish-lzi.3, salish-1deu)
               #:inputs (append catalogue-files '(register.vitals register.current_status register.status_dates types.enums
                                                  register.entities register.ancestor register.deprecations
                                                  register.group_ranks register.parentage register.matriarchs))
@@ -916,11 +922,9 @@
     [(water-mask.png) water-mask-png]
     [(water-mask.json) water-mask-json]
     [(reference/landmarks.tsv) (build-path SALISHSEA "data" "reference" "landmarks.tsv")]
-    [(catalogue/individuals.tsv) (build-path SALISHSEA "data" "catalogue" "individuals.tsv")]
     [(catalogue/designations.tsv) (build-path SALISHSEA "data" "catalogue" "designations.tsv")]
     [(catalogue/nicknames.tsv) (build-path SALISHSEA "data" "catalogue" "nicknames.tsv")]
     [(catalogue/parties.tsv) (build-path SALISHSEA "data" "catalogue" "parties.tsv")]
-    [(catalogue/social-groups.tsv) (build-path SALISHSEA "data" "catalogue" "social-groups.tsv")]
     [(catalogue/haulouts.tsv) (build-path SALISHSEA "data" "catalogue" "haulouts.tsv")]
     [(reference/providers.tsv) (build-path SALISHSEA "data" "reference" "providers.tsv")]
     [(reference/organizations.tsv) (build-path SALISHSEA "data" "reference" "organizations.tsv")]

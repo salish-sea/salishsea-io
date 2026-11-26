@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import {
   dedupeOccurrenceLinks, displayName, populationPath, groupChain, individualPath, matrilineDesignation, matrilinePath, monthlyPresence,
-  podPath, slugify,
+  podPath, populationLabel, populationNoun, slugify,
   type IndividualOccurrence, type OccurrenceLink, type SocialGroup,
   distanceKm, hauloutPath, mediumPhotoUrl,
 } from './catalog.ts';
@@ -222,4 +222,15 @@ test('links are newest first when one time in a second has a fraction and anothe
     link('orcasound:2', '2026-10-20T19:41:54.458+00:00'),
   ]);
   expect(links.map(l => l.occurrence_id)).toEqual(['orcasound:2', 'inaturalist:1']);
+});
+
+// Decision 123: the register's label for the Bigg's ecotype is "Bigg's", where the sheet's
+// designation was "Biggs"; the label shown and the URL slug don't depend on the spelling.
+test("a population's label is keyed by its register identifier, and the slug drops the apostrophe", () => {
+  const biggs = { entity_id: 'SSA:0000002', designation: "Bigg's" };
+  expect(populationLabel(biggs)).toBe("Bigg's (transient) killer whales");
+  expect(populationNoun(biggs)).toBe("Bigg's killer whale");
+  expect(populationLabel({ entity_id: 'SSA:0000010', designation: 'Southern Resident' })).toBe('Southern Resident killer whales');
+  expect(populationLabel({ entity_id: 'SSA:0000777', designation: 'Offshore' })).toBe('Offshore');
+  expect(populationPath(biggs)).toBe('/populations/0000002/Biggs');
 });

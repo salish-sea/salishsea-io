@@ -47,7 +47,7 @@ export interface EcotypeProfileData {
 }
 
 /** What the page calls the population or pod, in its heading, its title and its preview. */
-export const ecotypeLabel = (group: Pick<ProfileEcotype, 'designation' | 'kind'>): string =>
+export const ecotypeLabel = (group: Pick<ProfileEcotype, 'entity_id' | 'designation' | 'kind'>): string =>
   group.kind === 'pod' ? podLabel(group) : populationLabel(group);
 
 const KICKERS: Record<string, string> = { ecotype: 'Ecotype', community: 'Community', pod: 'Pod' };
