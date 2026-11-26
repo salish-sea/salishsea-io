@@ -450,18 +450,33 @@ export const CATALOGUE_MEMORY = '64MB';
  * described: a population without mothers, or a checked-in row that names an animal or group
  * no generated row stands for. (A header that isn't the file's throws.)
  */
-async function checkedInProblems(conn: DuckDBConnection, dir: string): Promise<string[]> {
+/**
+ * Temp views `file_<table>` over the checked-in files, and what is wrong with any of them: a
+ * header that isn't the declared one, or a cell that doesn't read as its type. Those are
+ * problems to report, not errors, and nothing further can be checked against such a file.
+ */
+async function readFiles(conn: DuckDBConnection, dir: string): Promise<string[]> {
+    const unreadable: string[] = [];
+    for (const [table, {file}] of Object.entries(CATALOGUE)) {
+        if (file === null) continue;
+        try {
+            assertHeader(path.join(dir, file), fileColumns(table));
+            await conn.run(`CREATE TEMP VIEW file_${table} AS SELECT * FROM ${readTsv(path.join(dir, file), fileColumns(table))}`);
+            await conn.run(`SELECT count(*) FROM file_${table}`);
+        } catch (error) {
+            unreadable.push(`${file}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    return unreadable;
+}
+
+async function checkedInProblems(conn: DuckDBConnection): Promise<string[]> {
     await generatedRows(conn);
     const found: string[] = [];
     const missingMothers = await populationsWithoutMothers(conn);
     if (missingMothers.length)
         found.push(`the register edition records no mother for any animal of ${missingMothers.join(', ')}; `
             + 'the catalogue would publish them without mothers (decision 123)');
-    for (const [table, {file}] of Object.entries(CATALOGUE)) {
-        if (file === null) continue;
-        assertHeader(path.join(dir, file), fileColumns(table));
-        await conn.run(`CREATE TEMP VIEW file_${table} AS SELECT * FROM ${readTsv(path.join(dir, file), fileColumns(table))}`);
-    }
     return [...found, ...await unresolvedFileRows(conn)];
 }
 
@@ -477,18 +492,32 @@ async function checkedInProblems(conn: DuckDBConnection, dir: string): Promise<s
  * implementation, so the two can't disagree.
  */
 export async function catalogueProblems(conn: DuckDBConnection, dir = CATALOGUE_DIR): Promise<string[]> {
-    try {
-        const problems = await checkedInProblems(conn, dir);
-        const list = (table: string) => CATALOGUE[table]!.columns.map(([name]) => name).join(', ');
-        for (const table of Object.keys(CATALOGUE))
-            await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list(table)} FROM (${ROWS[table] ?? `SELECT * FROM file_${table}`})`);
-        problems.push(...await violations(conn));
-        await registerVitals(conn, 'cat_individuals');
-        return problems;
-    } catch (error) {
-        // a header or a cell that doesn't read as its type, or a register with no statuses
-        return [error instanceof Error ? error.message : String(error)];
+    // Only what is wrong with the files or the edition comes back as a problem. Anything else
+    // thrown here (memory, disk, a bug) propagates, so the register's ingest doesn't record it
+    // as a release it refused.
+    const unreadable = await readFiles(conn, dir);
+    if (unreadable.length) return unreadable;
+    const problems = await checkedInProblems(conn);
+    const list = (table: string) => CATALOGUE[table]!.columns.map(([name]) => name).join(', ');
+    for (const table of Object.keys(CATALOGUE))
+        await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list(table)} FROM (${ROWS[table] ?? `SELECT * FROM file_${table}`})`);
+    problems.push(...await violations(conn));
+    for (const table of Object.keys(CATALOGUE)) {
+        const n = (await conn.runAndReadAll(`SELECT count(*) FROM cat_${table}`)).getRows()[0]![0];
+        if (Number(n) === 0) problems.push(`the catalogue's ${table} has no rows`);
     }
+    const statuses = await conn.runAndReadAll('SELECT count(*) FROM register.current_status');
+    if (Number(statuses.getRows()[0]![0]) === 0) {
+        problems.push('register.current_status is empty: no life status to give any individual');
+        return problems;
+    }
+    const vitals = await registerVitals(conn, 'cat_individuals');
+    const ids = (await conn.runAndReadAll('SELECT id, entity_id FROM cat_individuals')).getRows();
+    const without = ids.filter(([id]) => !vitals.has(Number(id))).map(([, entity]) => String(entity));
+    if (without.length)
+        problems.push(`individuals with no register entity to take their vitals from: ${without.slice(0, 10).join(', ')}`
+            + (without.length > 10 ? `, and ${without.length - 10} more` : ''));
+    return problems;
 }
 
 /** Load every catalogue table into `store.snapshot`, replacing what was there, in one transaction. */
@@ -501,7 +530,6 @@ export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Prom
         const docs: Record<string, string[]> = {};
         for (const table of Object.keys(CATALOGUE)) {
             const rows = (await conn.runAndReadAll(`SELECT * FROM cat_${table} ORDER BY id`)).getRowObjectsJS() as Row[];
-            if (rows.length === 0) throw new Error(`the catalogue's ${table} has no rows`);
             docs[table] = documents(table, rows, vitals);
         }
         await conn.run('CREATE SCHEMA IF NOT EXISTS store.snapshot');

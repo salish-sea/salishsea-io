@@ -275,8 +275,8 @@
     ;; whales page (salish-nkbq)
     "register.taxon_ancestor"
     ;; each group's rank, each animal's mother, and the matriarch each matriline is
-    ;; named for: what the catalogue generates the Southern Residents' rows from
-    ;; (salishsea decision 070, salish-lzi.2)
+    ;; named for: what the catalogue generates the Southern Residents' and the Bigg's rows from
+    ;; (salishsea decisions 070 and 123)
     "register.group_ranks" "register.parentage" "register.matriarchs"))
 (define register-relations (map string->symbol register-tables))
 
@@ -650,10 +650,12 @@
    ;; which tag is newest every run, a fetch only when it moved. An edition that would
    ;; un-name a Maplify pair the held edition names is refused before it is adopted — the
    ;; Maplify mirror's pairs and the curator's allow-list are the inputs that question
-   ;; reads — and the build goes on with the edition it holds, the run log and heartbeat
-   ;; saying why. The name guard below stays as the backstop.
+   ;; reads — and so is an edition the catalogue task would fail on (decision 123): the
+   ;; checked-in catalogue files and the reference tables are what that check reads. Either
+   ;; way the build goes on with the edition it holds, the run log and heartbeat saying
+   ;; why. The name guard below stays as the backstop.
    (make-task 'ingest-register 'boundary
-              #:inputs '(maplify_mirror.sightings maplify-unnamed.tsv)
+              #:inputs (append '(maplify_mirror.sightings maplify-unnamed.tsv) catalogue-files reference-files)
               #:outputs (cons 'register.edition register-relations)
               #:invoke (node-script/code "scripts/read-path/ingest-register.ts"
                                  '()

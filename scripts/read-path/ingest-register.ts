@@ -197,9 +197,11 @@ async function adopt(conn: DuckDBConnection, file: string, dir: string, tag: str
  */
 export async function candidateProblems(dir: string, catalogueDir?: string): Promise<string[]> {
     const scratch = mkdtempSync(path.join(tmpdir(), 'register-check-'));
-    const db = await DuckDBInstance.create(':memory:');
-    const conn = await db.connect();
+    let db: DuckDBInstance | undefined;
+    let conn: DuckDBConnection | undefined;
     try {
+        db = await DuckDBInstance.create(':memory:');
+        conn = await db.connect();
         await budget(conn, path.join(scratch, 'check'), CATALOGUE_MEMORY);
         await conn.run(`ATTACH ${sqlString(path.join(scratch, 'store.duckdb'))} AS store`);
         await loadReference(conn, 'store');
@@ -207,8 +209,8 @@ export async function candidateProblems(dir: string, catalogueDir?: string): Pro
         await loadTables(conn, 'register', dir);
         return await catalogueProblems(conn, catalogueDir);
     } finally {
-        conn.closeSync();
-        db.closeSync();
+        conn?.closeSync();
+        db?.closeSync();
         rmSync(scratch, {recursive: true, force: true});
     }
 }

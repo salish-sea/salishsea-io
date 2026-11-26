@@ -173,8 +173,13 @@
 (for ([r (in-list '(register.entities register.names register.mappings register.ancestor
                     register.deprecations register.classification register.edition))])
   (check-eq? (producer-of salishsea-ingest-graph r) 'ingest-register (format "~a comes from the release" r)))
-(check-equal? (ingest-inputs-of 'ingest-register) '(maplify_mirror.sightings maplify-unnamed.tsv)
-              "it judges a new edition by the Maplify pairs and the curator's allow-list")
+(check-equal? (ingest-inputs-of 'ingest-register)
+              '(maplify_mirror.sightings maplify-unnamed.tsv
+                catalogue/designations.tsv catalogue/nicknames.tsv catalogue/parties.tsv catalogue/haulouts.tsv
+                reference/providers.tsv reference/organizations.tsv reference/collections.tsv
+                reference/maplify-collection-rules.tsv reference/enums.tsv reference/hydrophones.tsv)
+              (string-append "it judges a new edition by the Maplify pairs and the curator's allow-list, "
+                             "and by the checked-in catalogue the catalogue task would load (decision 123)"))
 (check-eq? (task-kind (hash-ref (graph-tasks salishsea-ingest-graph) 'ingest-register)) 'boundary)
 (check-equal? (task-kind (hash-ref (graph-tasks salishsea-graph) 'maplify-names)) 'gate)
 ;; its baseline is a checked-in file (salishsea decision 083), changed by a pull request
