@@ -1,6 +1,6 @@
 # 123 — The Bigg's catalogue rows are generated from the register too: a matriline needs two members, and alternate designations stay ours
 
-**Status:** accepted; not yet built (bd `salish-1deu`) · **Decided:** 2026-11-25 · **Completes:** [070](070-southern-residents-are-generated-from-the-register.md) (the Bigg's rows follow the Southern Residents') · **Applies:** [051](051-group-hierarchy-is-the-registers.md) · **Depends on:** [animals ADR-0028](https://github.com/salish-sea/animals/blob/main/decisions/0028-biggs-mothers-are-read-off-designations.md) (proposed 2026-11-25)
+**Status:** accepted; built 2026-11-25 (bd `salish-1deu`), not yet shipped: it waits for an animals release with ADR-0028's mothers · **Decided:** 2026-11-25 · **Completes:** [070](070-southern-residents-are-generated-from-the-register.md) (the Bigg's rows follow the Southern Residents') · **Applies:** [051](051-group-hierarchy-is-the-registers.md) · **Depends on:** [animals ADR-0028](https://github.com/salish-sea/animals/blob/main/decisions/0028-biggs-mothers-are-read-off-designations.md) (proposed 2026-11-25)
 
 ## Context
 
