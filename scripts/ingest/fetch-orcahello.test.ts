@@ -84,7 +84,7 @@ describe('fetchOrcaHelloDay', () => {
 });
 
 describe('fetchOrcaHelloDay against an API that misbehaves', () => {
-    const run = (getPage: (url: string) => Promise<{body: unknown, total: number | null}>, onPage: (rows: readonly unknown[]) => void = () => {}, maxPages?: number) =>
+    const run = (getPage: (url: string) => Promise<{body: unknown, total: number}>, onPage: (rows: readonly unknown[]) => void = () => {}, maxPages?: number) =>
         fetchOrcaHelloDay('2026-11-20', noopLog, onPage, { pauseMs: 0, getPage, ...(maxPages ? { maxPages } : {}) });
 
     it('stops when a page adds nothing new, as an API that ignores Page would give', async () => {
