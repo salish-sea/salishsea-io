@@ -151,20 +151,21 @@ export function isPopulation(group: { kind: string }): boolean {
   return (POPULATION_KINDS as readonly string[]).includes(group.kind);
 }
 
-// What each population is called. A group's notes would say, but notes are never
-// rendered (D-21), so the label is set in code; one without an entry shows its designation.
+// What each population is called, by its register identifier (the designation is the
+// register's label, which a curator may reword). A group's notes would say, but notes are
+// never rendered (D-21), so the label is set in code; one without an entry shows its designation.
 const POPULATION_LABELS: Record<string, string> = {
-  Biggs: "Bigg's (transient) killer whales",
-  'Southern Resident': 'Southern Resident killer whales',
+  'SSA:0000002': "Bigg's (transient) killer whales",
+  'SSA:0000010': 'Southern Resident killer whales',
 };
 
 /** What a population is called in a heading, a title or a link: "Bigg's (transient) killer whales". */
-export function populationLabel(group: { designation: string }): string {
-  return POPULATION_LABELS[group.designation] ?? group.designation;
+export function populationLabel(group: { entity_id: string | null; designation: string }): string {
+  return (group.entity_id && POPULATION_LABELS[group.entity_id]) || group.designation;
 }
 
 /** One of a population's animals, in prose: "Bigg's killer whale", "Southern Resident killer whale". */
-export function populationNoun(group: { designation: string }): string {
+export function populationNoun(group: { entity_id: string | null; designation: string }): string {
   return populationLabel(group).replace(/ \([^)]*\)/, '').replace(/s$/, '');
 }
 
