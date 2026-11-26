@@ -144,7 +144,7 @@ export function markDay(path: string, day: string, records: number, at: Date): v
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export async function main({pauseMs = PAUSE_MS}: {pauseMs?: number} = {}): Promise<void> {
+export async function main({pauseMs = PAUSE_MS, clock = () => new Date()}: {pauseMs?: number, clock?: () => Date} = {}): Promise<void> {
     const [path, start, end] = process.argv.slice(2);
     if (!path || (start === undefined) !== (end === undefined)) {
         console.error('usage: ingest-orcahello.ts <orcahello.sqlite> [<start> <end>]');
@@ -168,7 +168,7 @@ export async function main({pauseMs = PAUSE_MS}: {pauseMs?: number} = {}): Promi
     const log = (msg: string, extra?: Record<string, unknown>) =>
         console.log(extra ? `${msg} ${JSON.stringify(extra)}` : msg);
     const trigger = backfill ? 'manual' : 'cron';
-    const now = new Date();
+    const now = clock();
     const days: {kind: Kind | null, day: string}[] = backfill
         ? backfill.map(day => ({kind: null, day}))
         : (() => {
@@ -184,7 +184,7 @@ export async function main({pauseMs = PAUSE_MS}: {pauseMs?: number} = {}): Promi
         const begun = new Set<Kind>();
         for (const [i, {kind, day}] of days.entries()) {
             if (i > 0) await sleep(pauseMs);
-            if (kind !== null && !begun.has(kind)) { begun.add(kind); markAttempt(path, kind, now); }
+            if (kind !== null && !begun.has(kind)) { begun.add(kind); markAttempt(path, kind, clock()); }
             markDayAttempt(path, day, new Date());
             let changed = 0, kept = 0;
             try {

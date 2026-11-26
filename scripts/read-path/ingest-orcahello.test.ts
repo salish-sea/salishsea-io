@@ -100,7 +100,7 @@ describe('main', () => {
     afterAll(async () => { await rm(dir, {recursive: true, force: true}); });
     afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
-    const empty = () => new Response(null, {status: 204});
+    const empty = () => new Response(null, {status: 204, headers: {totalNumberRecords: '0'}});
     const runs = (file: string) => {
         const db = new DatabaseSync(path.join(path.dirname(file), 'runs.sqlite'), {readOnly: true});
         try { return db.prepare('SELECT outcome, error FROM runs ORDER BY id').all() as {outcome: string | null, error: string | null}[]; } finally { db.close(); }
@@ -119,6 +119,19 @@ describe('main', () => {
         await main({pauseMs: 0});
         expect(fetched).toEqual([]);
         expect(runs(file).map(r => r.outcome)).toEqual(['success', 'success']);
+    });
+
+    test('each kind is stamped when its first fetch begins, not when the run started', async () => {
+        const file = path.join(dir, 'clock', 'orcahello.sqlite');
+        let t = Date.parse('2026-11-26T12:00:00Z');
+        // every fetch takes a minute by the clock the run is given
+        vi.stubGlobal('fetch', () => { t += 60_000; return Promise.resolve(empty()); });
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+        process.argv = ['node', 'ingest-orcahello.ts', file];
+        await main({pauseMs: 0, clock: () => new Date(t)});
+        const {state} = readSchedule(file);
+        // recent begins at the start; today and yesterday took two minutes, so cycle begins then, old a minute after
+        expect(state).toEqual({recent: '2026-11-26T12:00:00.000Z', cycle: '2026-11-26T12:02:00.000Z', old: '2026-11-26T12:03:00.000Z'});
     });
 
     test('a day that comes back short fails the run, keeps its pages and is not marked read', async () => {

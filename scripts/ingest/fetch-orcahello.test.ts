@@ -94,6 +94,11 @@ describe('fetchOrcaHelloDay against an API that misbehaves', () => {
         expect(result).toEqual({ total: 400, fetched: 50 });
     });
 
+    it('a page that adds nothing leaves the day short of its count, which the caller must fail', async () => {
+        const result = await run(() => Promise.resolve({ body: ids(0, RECORDS_PER_PAGE), total: 50 + 1 }));
+        expect(result.fetched).toBeLessThan(result.total);
+    });
+
     it('refuses a count above the bound before a second page', async () => {
         let asked = 0;
         const attempt = run(() => { asked++; return Promise.resolve({ body: ids(0, RECORDS_PER_PAGE), total: MAX_TOTAL + 1 }); });
@@ -147,11 +152,23 @@ describe('fetchPage', () => {
         expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
     });
 
-    it('takes 204 and an empty body as no detections', async () => {
-        answer(204);
+    it('takes 204 and an empty body as no detections only with an explicit count of 0', async () => {
+        answer(204, '', { totalNumberRecords: '0' });
         expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
-        answer(200, '  ');
+        answer(200, '  ', { totalNumberRecords: '0' });
         expect(await fetchPage('https://example.org/')).toEqual({ body: [], total: 0 });
+    });
+
+    it('refuses every answer without a usable count, as transient: nothing is a whole day then', async () => {
+        for (const [status, body, headers] of [
+            [200, '', {}], [204, '', {}], [200, JSON.stringify([detection('d1')]), {}],
+            [200, '[]', { totalNumberRecords: 'many' }], [200, '[]', { totalNumberRecords: '-1' }], [200, '[]', { totalNumberRecords: '1.5' }],
+        ] as const) {
+            answer(status, body, { ...headers });
+            const failure = await fetchPage('https://example.org/').catch(e => e);
+            expect(String(failure)).toMatch(/no usable totalNumberRecords/);
+            expect(isTransientUpstream(failure)).toBe(true);
+        }
     });
 
     it('marks a 5xx, a 403 and a 429 transient, and another refusal not', async () => {

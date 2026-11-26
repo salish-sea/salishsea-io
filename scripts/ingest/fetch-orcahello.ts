@@ -45,7 +45,7 @@ export function pageUrl(day: string, page: number): string {
 }
 
 /** One page: its body and the total the API says the query holds. One attempt. */
-export type PageFetcher = (url: string) => Promise<{body: unknown, total: number | null}>;
+export type PageFetcher = (url: string) => Promise<{body: unknown, total: number}>;
 
 export const fetchPage: PageFetcher = async (url) => {
     const controller = new AbortController();
@@ -62,21 +62,22 @@ export const fetchPage: PageFetcher = async (url) => {
     } finally {
         clearTimeout(timeout);
     }
-    if (res.status === 204) return { body: [], total: 0 };
     if (!res.ok) {
         await res.body?.cancel();
         const error = new Error(`OrcaHello HTTP ${res.status}`);
         // what an overloaded API answers, or a refusal that waiting ends: not ours to fix
         throw res.status === 403 || res.status === 429 || res.status >= 500 ? markTransientUpstream(error) : error;
     }
-    // The count comes first: a blank body is a day with nothing in it only when the count says so.
+    // The count comes first, and every answer must carry it: with no count there is nothing to
+    // hold the pages to, so nothing is ever taken as a whole day. A blank body (or a 204) is an
+    // empty day only when the count says 0.
     const said = res.headers.get('totalNumberRecords');
-    const counted = said === null ? NaN : Number(said);
-    const total = Number.isFinite(counted) ? counted : null;
+    if (said === null || !/^\d+$/.test(said.trim()))
+        throw markTransientUpstream(new Error(`OrcaHello's answer has no usable totalNumberRecords (${said === null ? 'absent' : JSON.stringify(said)})`));
+    const total = Number(said);
     if (text.trim() === '') {
-        if (total !== null && total > 0)
-            throw markTransientUpstream(new Error(`OrcaHello sent an empty body for a page of ${total} detections`));
-        return { body: [], total: total ?? 0 };
+        if (total > 0) throw markTransientUpstream(new Error(`OrcaHello sent an empty body for a page of ${total} detections`));
+        return { body: [], total };
     }
     try {
         return { body: JSON.parse(text) as unknown, total };
@@ -105,8 +106,8 @@ export async function fetchOrcaHelloDay(
     let total: number | null = null;
     for (let page = 1; page <= maxPages; page++) {
         const {body, total: said} = await getPage(pageUrl(day, page));
-        if (said !== null) total = Math.max(total ?? 0, said);
-        if (total !== null && total > MAX_TOTAL)
+        total = Math.max(total ?? 0, said);
+        if (total > MAX_TOTAL)
             throw markTransientUpstream(new Error(`OrcaHello counts ${total} detections for ${day}; more than ${MAX_TOTAL} means it ignored the day`));
         const result = parseOrcaHelloPage(body);
         if (!result.ok) throw new Error(`orcahello parse failed on page ${page} of ${day}: ${result.error}`);
@@ -116,8 +117,10 @@ export async function fetchOrcaHelloDay(
         for (const row of result.rows) ids.add(row.id);
         onPage(result.rows);
         log('orcahello page', { day, page, detections: result.rows.length });
-        if (result.rows.length < RECORDS_PER_PAGE || (total !== null && ids.size >= total) || ids.size === before)
-            return { total: total ?? ids.size, fetched: ids.size };
+        // Done at a short page, once the count is met, or when a page adds nothing (the caller sees
+        // fetched < total and fails the day).
+        if (result.rows.length < RECORDS_PER_PAGE || ids.size >= total || ids.size === before)
+            return { total, fetched: ids.size };
         await sleep(pauseMs);
     }
     throw markTransientUpstream(new Error(`OrcaHello gave ${maxPages} pages of ${day} without finishing; ${ids.size} detections kept`));
