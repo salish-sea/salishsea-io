@@ -4,7 +4,7 @@
  * the rest (native sightings, the register, the reference tables) from the
  * snapshot's copies of Postgres's tables.
  *
- *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json> <places-parks.json>]]
+ *   node scripts/read-path/derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [<orcasound-detections.sqlite> <orcahello.sqlite>] [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json> <places-parks.json>]]
  *
  * Writes `build.occurrences` into the snapshot: id, observed_at and the document,
  * the shape Postgres's derived.occurrences had. The SQL is derive/occurrences.sql, ported
@@ -12,6 +12,11 @@
  * read here in node by src/sighting-text.ts, the module the browser runs
  * (derive/readings.ts, decision 105), and joined in.
  * derive-occurrences.test.ts checks it against the rows the fixture expects (fixtures/twins/).
+ *
+ * Given the two mirrors of Orcasound's detections as well (salish-fizm.1, decision 122), the
+ * orcasound arm also writes `build.detections`: each detection marked as a whale, what it
+ * claims, and whether a moderator or a confirmed bout has confirmed or rejected it
+ * (derive/detections.sql). Not an occurrence, and nothing that publishes reads it yet.
  *
  * Each document also names the water region its point is in (`place`, salish-fwyt.2),
  * which Postgres never derived: looked up here in node, in the basemap's regions list
@@ -57,7 +62,9 @@ export const ARM_INPUTS: Readonly<Record<Source, readonly string[]>> = {
     inaturalist: ['inaturalist_mirror.observations', 'inaturalist_mirror.observation_photos', 'inaturalist_mirror.identifications',
                   'inaturalist_mirror.comments'],
     native: ['public.observations', 'public.observation_photos', 'public.contributors'],
-    orcasound: ['orcasound.bouts', 'orcasound.bout_entities', 'public.hydrophones'],
+    // the detections' two mirrors are the orcasound arm's too: build.detections is derived with it
+    orcasound: ['orcasound.bouts', 'orcasound.bout_entities', 'public.hydrophones',
+                'orcasound_detections.detections', 'orcasound_detections.feeds', 'orcahello.detections'],
 };
 
 /**
@@ -190,6 +197,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
     const lookups = await readFile(new URL('./derive/lookups.sql', import.meta.url), 'utf8');
     const maplifyCollection = await readFile(new URL('./derive/maplify-collection.sql', import.meta.url), 'utf8');
     const sql = await readFile(new URL('./derive/occurrences.sql', import.meta.url), 'utf8');
+    const detectionsSql = await readFile(new URL('./derive/detections.sql', import.meta.url), 'utf8');
     // Capped, as snapshot.ts is, for the 1 GB Fly machine: what doesn't fit spills
     // beside the snapshot. Measured on 63,720 occurrences: it ran out at 64 MB and
     // completed at 96; at 128 the process peaked at 324 MB on macOS, of which about
@@ -218,13 +226,18 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
         // whatever it was told, every arm is written. (Ingest builds are told too, and
         // today always re-derive every arm: iNaturalist's taxa, which every arm names
         // species through, are restamped a few at a time each run.)
-        const present = Number((await conn.runAndReadAll(
+        const tablePresent = async (table: string) => Number((await conn.runAndReadAll(
             `SELECT count(*) FROM information_schema.tables
-             WHERE table_catalog = 'store' AND table_schema = 'build' AND table_name = 'occurrences'`,
+             WHERE table_catalog = 'store' AND table_schema = 'build' AND table_name = '${table}'`,
         )).getRows()[0]![0]) > 0;
+        const present = await tablePresent('occurrences');
+        // build.detections comes with the orcasound arm, so a store that lacks it, as one built
+        // before it existed does, is derived whole once.
+        const detectionsPresent = !mirrors.detections || await tablePresent('detections');
         // Told, but every arm goes anyway: say why, since the engine's own line lists
         // what changed and the two are read side by side.
-        const chosen: Arms = !present ? {all: 'no table yet to replace into'} : wanted;
+        const chosen: Arms = !present ? {all: 'no table yet to replace into'}
+            : !detectionsPresent ? {all: 'no build.detections yet to replace'} : wanted;
         if (changed !== null && 'all' in chosen)
             console.log(`build.occurrences: told ${changed.length} input(s) changed, re-deriving every arm: ${chosen.all}`);
         const all = 'all' in chosen;
@@ -245,6 +258,7 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
             if (readsText(source)) await writeReadings(conn, source);
             await conn.run(parts.arms[source]);
             await writePlaces(conn, source, regions, landmarks);
+            if (source === 'orcasound' && mirrors.detections) await conn.run(detectionsSql);
         }
         // A full run REPLACES the table, so a column added here reaches the file on the
         // volume; a partial one replaces its arms' rows in place.
@@ -277,6 +291,10 @@ export async function deriveOccurrences(snapshot: string, mirrors: Mirrors,
                 throw error;
             }
         }
+        // The detections, derived over the orcasound arm's view, a table of their own: replaced
+        // whole whenever the arm is, since a bout's confirmation or an answer can change any of them.
+        if (mirrors.detections && arms.includes('orcasound'))
+            await conn.run('CREATE OR REPLACE TABLE build.detections AS SELECT * FROM detections_derived');
         // Rows replaced in place leave dead rows in the file until a checkpoint compacts
         // them; a save every half-minute would otherwise grow the snapshot on the volume.
         if (!all) await conn.run('CHECKPOINT store');
@@ -294,7 +312,7 @@ export async function main(): Promise<void> {
     const [snapshot, ...rest] = args;
     const mirrors = mirrorArgs(rest);
     if (!snapshot || !mirrors || (flag >= 0 && !regions) || (lflag >= 0 && (!list || !osm || !parks || !regions))) {
-        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json> <places-parks.json>]]');
+        console.error('usage: derive-occurrences.ts <snapshot.duckdb> <maplify.sqlite> <inaturalist.sqlite> <orcasound.sqlite> [<orcasound-detections.sqlite> <orcahello.sqlite>] [--regions <water-regions.json> [--landmarks <landmarks.tsv> <places-osm.json> <places-parks.json>]]');
         process.exit(2);
     }
     const {rows, arms} = await deriveOccurrences(snapshot, mirrors, changedInputs(), regions ?? null,

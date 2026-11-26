@@ -1,0 +1,14 @@
+id,observed_at,feed_id,source,detector_claim,orcahello_answer,bout_id,taxon_entity,confirmation,basis
+orcasound:det_T01,2026-09-10 12:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,human,SSA:0000934,,,SSA:0000934,unconfirmed,
+orcasound:det_T02,2026-09-16 04:30:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,human,SSA:0000934,,bout_twin0000000000000001,SSA:0000900,confirmed,bout
+orcasound:det_T03,2026-09-12 10:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000010,yes,,SSA:0000010,confirmed,orcahello
+orcasound:det_T04,2026-09-12 11:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000010,no,,SSA:0000901,confirmed,orcahello
+orcasound:det_T05,2026-09-12 12:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000010,no,,SSA:0000010,rejected,orcahello
+orcasound:det_T06,2026-09-16 04:40:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000010,no,bout_twin0000000000000001,SSA:0000010,rejected,orcahello
+orcasound:det_T07,2026-09-17 06:10:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000002,,bout_twin0000000000000002,SSA:0000002,unconfirmed,
+orcasound:det_T10,2026-09-12 15:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000900,,,SSA:0000900,unconfirmed,
+orcasound:det_T11,2026-09-16 04:20:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000010,don't know,bout_twin0000000000000001,SSA:0000900,confirmed,bout
+orcasound:det_T12,2026-09-12 16:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000010,no,,SSA:0000900,confirmed,orcahello
+orcasound:det_T13,2026-09-12 17:00:00+00,feed_02u8r4ELz2xkCjPTc4yLWE,machine,SSA:0000934,,,SSA:0000934,unconfirmed,
+orcasound:det_T14,2026-09-16 04:55:01+00,feed_02u8r4ELz2xkCjPTc4yLWE,human,SSA:0000934,,,SSA:0000934,unconfirmed,
+orcasound:det_T15,2026-09-16 04:30:00+00,feed_02u8r4EOo8cuSHdC7xDqMI,human,SSA:0000934,,,SSA:0000934,unconfirmed,

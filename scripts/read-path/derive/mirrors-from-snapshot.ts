@@ -7,10 +7,44 @@
  */
 
 import { DuckDBInstance } from '@duckdb/node-api';
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 import type { Mirrors } from './sources.ts';
 import { sqlString } from '../duckdb-budget.ts';
+import { ensureMirror as ensureDetectionsMirror } from '../ingest-orcasound-detections.ts';
+import { ensureMirror as ensureOrcaHelloMirror } from '../ingest-orcahello.ts';
+
+/**
+ * The two mirrors of Orcasound's detections (salish-fizm.1), which Postgres never held,
+ * written in the ingests' own schemas from fixtures/twins/detections/mirrors.json: the
+ * rows of each table, in the mirror's shape. What each should derive is expected.csv there.
+ */
+const DETECTIONS = path.join(import.meta.dirname, '..', 'fixtures', 'twins', 'detections');
+
+function writeDetectionMirrors(dir: string): NonNullable<Mirrors['detections']> {
+    const files = {orcasite: path.join(dir, 'orcasound-detections.sqlite'), orcahello: path.join(dir, 'orcahello.sqlite')};
+    const fixture = JSON.parse(readFileSync(path.join(DETECTIONS, 'mirrors.json'), 'utf8')) as Record<string, Record<string, unknown>[]>;
+    ensureDetectionsMirror(files.orcasite);
+    ensureOrcaHelloMirror(files.orcahello);
+    const insert = (file: string, table: string, rows: Record<string, unknown>[]) => {
+        const db = new DatabaseSync(file);
+        try {
+            for (const row of rows) {
+                const columns = Object.keys(row);
+                db.prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`)
+                    .run(...columns.map(c => row[c] as null | number | string));
+            }
+        } finally {
+            db.close();
+        }
+    };
+    insert(files.orcasite, 'feeds', fixture['feeds']!);
+    insert(files.orcasite, 'detections', fixture['orcasound_detections']!);
+    insert(files.orcahello, 'detections', fixture['orcahello']!);
+    return files;
+}
 
 export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promise<Mirrors> {
     const mirrors = {
@@ -63,5 +97,5 @@ export async function mirrorsFromSnapshot(snapshot: string, dir: string): Promis
         conn.closeSync();
         db.closeSync();
     }
-    return mirrors;
+    return {...mirrors, detections: writeDetectionMirrors(dir)};
 }
