@@ -177,8 +177,9 @@ describe("the Bigg's rows are generated from the register too (decision 123)", (
     });
 
     // As views, every constraint check expanded the whole matriline rule again and the task ran out of
-    // its 64 MB on the real register (review of decision 123). Synthetic data only made that slow, so the
-    // size test below is a smoke test, and this one holds the cause.
+    // its 64 MB on the real register (review of decision 123). Only the real register reproduced the
+    // failure; synthetic data of its size merely made the views slow. So this test pins the cause (the
+    // generated rows are tables) rather than measuring the budget, and the size test below only smokes it.
     test("a matriline whose matriarch the register deprecated has no row for her calf's sake", async () => {
         const conn = await inMemoryRegister({...BIGGS, deprecated: [...BIGGS.deprecated, 'SSA:0014000']});
         try {
@@ -359,6 +360,13 @@ describe("the checked-in designations and nicknames are keyed by register identi
         expect(loaded.docs['nicknames']).toHaveLength(403);
     }), 120_000);
 
+    test('a relabelled whale that takes a checked-in code stops the load, though every row still resolves', () => withTempDir(async parent => {
+        const dir = await catalogueDir(parent, [['1', 'SSA:0011001', 'T100Z', 'bc_wa', 'superseded', 'false', 'true', '']], []);
+        const relabelled = {...BIGGS, entities: BIGGS.entities.map(e => e[0] === 'SSA:0011001' ? [e[0], e[1], e[2], 'T100Z'] as typeof e : e)};
+        const loaded = await loadFixture(parent, together(SOUTHERN_RESIDENTS, relabelled), dir);
+        expect('error' in loaded ? loaded.error : '').toMatch(/designations repeats \(code\)/);
+    }));
+
     test("a register that records no mother for any of a generated population's animals is refused (guard)", () => withTempDir(async parent => {
         const dir = await catalogueDir(parent, [], []);
         const noBiggsMothers = together(SOUTHERN_RESIDENTS, {...BIGGS, parentage: []});
@@ -407,7 +415,7 @@ describe('the catalogue as documents (decision 064)', () => {
         }
     });
 
-    test('the checked-in designations and nicknames name register entities, and their overrides look like the designations they override', async () => {
+    test('the checked-in designations and nicknames have well-formed register identifiers and unique keys, and their overrides have designation-shaped codes (not that the entities exist: ingest checks that)', async () => {
         const conn = await (await DuckDBInstance.create(':memory:')).connect();
         try {
             const rows = async (table: string) => (await conn.runAndReadAll(

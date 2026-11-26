@@ -441,15 +441,16 @@ export async function registerVitals(conn: DuckDBConnection, individuals: string
     }));
 }
 
+/** The memory the catalogue task runs in, and so the register's ingest runs this check in. */
+export const CATALOGUE_MEMORY = '64MB';
+
 /**
  * Generate the rows from the register attached as `register` and read the checked-in files of
  * `dir` into temp views `file_<table>`; the problems that would make the catalogue task fail,
- * described: a header that isn't the file's, a population without mothers, or a checked-in
- * row that names an animal or group no generated row stands for. The task runs it, and so does
- * the register's ingest on a candidate edition before adopting it, so a release that would
- * break a checked-in row is refused there rather than stopping the build after it is adopted.
+ * described: a population without mothers, or a checked-in row that names an animal or group
+ * no generated row stands for. (A header that isn't the file's throws.)
  */
-export async function checkedInProblems(conn: DuckDBConnection, dir = CATALOGUE_DIR): Promise<string[]> {
+async function checkedInProblems(conn: DuckDBConnection, dir: string): Promise<string[]> {
     await generatedRows(conn);
     const found: string[] = [];
     const missingMothers = await populationsWithoutMothers(conn);
@@ -464,15 +465,37 @@ export async function checkedInProblems(conn: DuckDBConnection, dir = CATALOGUE_
     return [...found, ...await unresolvedFileRows(conn)];
 }
 
-/** Load every catalogue table into `store.snapshot`, replacing what was there, in one transaction. */
-export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Promise<Record<string, number>> {
-    return withSnapshot(snapshot, {memory: '64MB', write: true}, async conn => {
-        await attachRegister(conn, registerFile(snapshot));
+/**
+ * Everything the catalogue task checks before it writes a document, as a list of problems
+ * (none when the catalogue is sound): the files' headers and the types of their cells, the
+ * generated rows, the checked-in rows' resolution, the Postgres-era constraints over both
+ * together, and the register's life statuses. It needs the register attached as `register`
+ * and the reference tables as `store.types.enums`, and leaves temp views `cat_<table>` behind.
+ *
+ * The task calls it and throws on any problem; the register's ingest calls it on a candidate
+ * edition, so a release that would fail the task is refused before it is adopted. One
+ * implementation, so the two can't disagree.
+ */
+export async function catalogueProblems(conn: DuckDBConnection, dir = CATALOGUE_DIR): Promise<string[]> {
+    try {
         const problems = await checkedInProblems(conn, dir);
         const list = (table: string) => CATALOGUE[table]!.columns.map(([name]) => name).join(', ');
         for (const table of Object.keys(CATALOGUE))
             await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list(table)} FROM (${ROWS[table] ?? `SELECT * FROM file_${table}`})`);
-        const broken = [...problems, ...await violations(conn)];
+        problems.push(...await violations(conn));
+        await registerVitals(conn, 'cat_individuals');
+        return problems;
+    } catch (error) {
+        // a header or a cell that doesn't read as its type, or a register with no statuses
+        return [error instanceof Error ? error.message : String(error)];
+    }
+}
+
+/** Load every catalogue table into `store.snapshot`, replacing what was there, in one transaction. */
+export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Promise<Record<string, number>> {
+    return withSnapshot(snapshot, {memory: CATALOGUE_MEMORY, write: true}, async conn => {
+        await attachRegister(conn, registerFile(snapshot));
+        const broken = await catalogueProblems(conn, dir);
         if (broken.length) throw new Error(`the catalogue breaks what Postgres enforced:\n  ${broken.join('\n  ')}`);
         const vitals = await registerVitals(conn, 'cat_individuals');
         const docs: Record<string, string[]> = {};

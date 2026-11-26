@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { CATALOGUE_DIR } from './catalogue.ts';
-import { catalogueProblems, latestTag, REGISTER_TABLES } from './ingest-register.ts';
+import { candidateProblems, latestTag, REGISTER_TABLES } from './ingest-register.ts';
 
 describe('latestTag (decision 064)', () => {
     afterEach(() => { vi.unstubAllGlobals(); });
@@ -56,7 +56,7 @@ describe('latestTag classifies what fails (decision 042)', () => {
 });
 
 
-describe('a candidate edition is checked against the checked-in catalogue before it is adopted (decision 123)', () => {
+describe('a candidate edition is checked against the catalogue task before it is adopted (decision 123)', () => {
     // The columns each published file has that the build reads (REGISTER_TABLES), and an edition's rows.
     const FILES: Record<string, [string, string[]]> = {
         entities: ['data', ['entity_id', 'kind', 'rank', 'label', 'sex', 'born']],
@@ -70,39 +70,66 @@ describe('a candidate edition is checked against the checked-in catalogue before
         parentage: ['data', ['child_id', 'parent_id', 'role']],
         matriarchs: ['data', ['matriline_id', 'matriarch_id']],
     };
-    const edition = (rows: Record<string, string[][]>) => async (dir: string) => {
+    type Rows = Record<string, string[][]>;
+    const writeEdition = async (dir: string, rows: Rows) => {
         for (const [table, [sub, columns]] of Object.entries(FILES)) {
             await mkdir(path.join(dir, sub), {recursive: true});
             const lines = [columns.join('\t'), ...(rows[table] ?? []).map(r => r.join('\t'))];
             await writeFile(path.join(dir, sub, `${table}.tsv`), lines.join('\n') + '\n');
         }
     };
-    const BIGGS = {
-        entities: [["SSA:0000002", 'group', 'ecotype', "Bigg's", '', ''], ['SSA:0011000', 'individual', '', 'T100', '', ''],
-                   ['SSA:0011001', 'individual', '', 'T100A', '', '']],
+    const whale = (id: string, label: string) => ['SSA:' + id, 'individual', '', label, '', ''];
+    const BIGGS: Rows = {
+        entities: [['SSA:0000002', 'group', 'ecotype', "Bigg's", '', ''], whale('0011000', 'T100'), whale('0011001', 'T100A')],
         ancestor: [['SSA:0011000', 'SSA:0000002', '1', 'group'], ['SSA:0011001', 'SSA:0000002', '1', 'group']],
         parentage: [['SSA:0011001', 'SSA:0011000', 'mother']],
+        current_status: [['SSA:0011000', 'alive', ''], ['SSA:0011001', 'alive', '']],
     };
 
-    test('an edition that deprecates a whale a nickname names is refused, and one that does not is not', async () => {
+    /** A catalogue directory whose files hold a nickname on T100 and a superseded alternate code T100Z for T100A. */
+    async function catalogueDir(parent: string): Promise<string> {
+        const dir = path.join(parent, 'catalogue');
+        await mkdir(dir);
+        const head = (cols: string[]) => cols.join('\t') + '\n';
+        await writeFile(path.join(dir, 'designations.tsv'),
+            head(['id', 'entity_id', 'code', 'scheme', 'status', 'is_primary', 'in_catalog', 'authority_id'])
+            + '1\tSSA:0011001\tT100Z\tbc_wa\tsuperseded\tfalse\ttrue\t\n');
+        await writeFile(path.join(dir, 'nicknames.tsv'),
+            head(['id', 'entity_id', 'name', 'status', 'namer_id', 'named_year', 'theme']) + '1\tSSA:0011000\tMoon\tofficial\t1\t\t\n');
+        for (const file of ['parties.tsv', 'haulouts.tsv']) await copyFile(path.join(CATALOGUE_DIR, file), path.join(dir, file));
+        return dir;
+    }
+
+    const problemsOf = async (rows: Rows) => {
         const parent = await mkdtemp(path.join(tmpdir(), 'ingest-'));
         try {
-            const catalogue = path.join(parent, 'catalogue');
-            await mkdir(catalogue);
-            const head = (cols: string[]) => cols.join('\t') + '\n';
-            await writeFile(path.join(catalogue, 'designations.tsv'), head(['id', 'entity_id', 'code', 'scheme', 'status', 'is_primary', 'in_catalog', 'authority_id']));
-            await writeFile(path.join(catalogue, 'nicknames.tsv'),
-                head(['id', 'entity_id', 'name', 'status', 'namer_id', 'named_year', 'theme']) + '1\tSSA:0011000\tMoon\tofficial\t1\t\t\n');
-            for (const file of ['parties.tsv', 'haulouts.tsv']) await copyFile(path.join(CATALOGUE_DIR, file), path.join(catalogue, file));
-            const ok = path.join(parent, 'ok');
-            await edition(BIGGS)(ok);
-            expect(await catalogueProblems(ok, catalogue)).toEqual([]);
-            const deprecated = path.join(parent, 'deprecated');
-            await edition({...BIGGS, deprecations: [['SSA:0011000', 'SSA:0011001']]})(deprecated);
-            const problems = await catalogueProblems(deprecated, catalogue);
-            expect(problems.join('\n')).toMatch(/nicknames.tsv names an entity that is no generated animal or group \(id\/entity_id\): 1\/SSA:0011000/);
+            await writeEdition(path.join(parent, 'edition'), rows);
+            return (await candidateProblems(path.join(parent, 'edition'), await catalogueDir(parent))).join('\n');
         } finally {
             await rm(parent, {recursive: true, force: true});
         }
+    };
+
+    test('an edition that only adds an unrelated whale is accepted', async () => {
+        expect(await problemsOf({
+            ...BIGGS,
+            entities: [...BIGGS.entities!, whale('0011999', 'T199')],
+            ancestor: [...BIGGS.ancestor!, ['SSA:0011999', 'SSA:0000002', '1', 'group']],
+            current_status: [...BIGGS.current_status!, ['SSA:0011999', 'alive', '']],
+        })).toBe('');
+    });
+
+    test('an edition that deprecates a whale a nickname names is refused', async () => {
+        expect(await problemsOf({...BIGGS, deprecations: [['SSA:0011000', 'SSA:0011001']]}))
+            .toMatch(/nicknames.tsv names an entity that is no generated animal or group \(id\/entity_id\): 1\/SSA:0011000/);
+    });
+
+    test('an edition that relabels a whale as a code a checked-in row holds is refused, though every row still resolves', async () => {
+        const relabelled = {...BIGGS, entities: [BIGGS.entities![0]!, BIGGS.entities![1]!, whale('0011001', 'T100Z')]};
+        expect(await problemsOf(relabelled)).toMatch(/designations repeats \(code\)/);
+    });
+
+    test('an edition with no life statuses is refused', async () => {
+        expect(await problemsOf({...BIGGS, current_status: []})).toMatch(/register.current_status is empty/);
     });
 });

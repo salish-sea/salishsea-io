@@ -23,16 +23,19 @@
  * (check-maplify-names.ts) stays as the backstop for what this misses, a pair the mirror
  * doesn't hold this run. A curator accepts an un-naming in data/maplify-unnamed.tsv.
  *
- * A release is also refused when it would break a row of the checked-in catalogue (the designations
- * and nicknames, which name register entities; decision 123): the same checks the catalogue task
- * runs (catalogue.ts), asked of the candidate, so the task never meets a release it must fail on.
+ * A release is also refused when the catalogue task would fail on it (decision 123): the
+ * checked-in designations and nicknames name register entities, and the rows generated from
+ * the register are held to the same constraints as theirs. The task's whole validation
+ * (catalogueProblems in catalogue.ts) is run on the candidate, in the task's memory, so the
+ * task never meets a release it must fail on. Re-adopting the edition already held skips it.
  *
  * `--tag`, or REGISTER_TAG in the environment (how an operator sets it on the Fly machine),
  * holds the build at, or rolls it back to, one edition, as the workflow's input does.
  * Under Stelis it writes the boundary receipt (STELIS_BOUNDARY_RECEIPT).
  */
 
-import { existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -45,7 +48,8 @@ import { fetchEdition, REPO } from '../register/edition.ts';
 import { buildNameIndex, NAME_INDEX_SQL, type RegisterName } from '../register/name-index.ts';
 import { readUnnamed } from '../register/unnamed.ts';
 import type { Named } from './check-maplify-names.ts';
-import { checkedInProblems } from './catalogue.ts';
+import { catalogueProblems, CATALOGUE_MEMORY } from './catalogue.ts';
+import { loadReference } from './reference.ts';
 import { budget, sqlString } from './duckdb-budget.ts';
 import { boundaryReceipt, markRefused, recordedRun } from './ingest-runs.ts';
 import { attachRegister } from './register-file.ts';
@@ -186,23 +190,26 @@ async function adopt(conn: DuckDBConnection, file: string, dir: string, tag: str
 }
 
 /**
- * The checked-in catalogue rows (designations and nicknames, which name register entities)
- * that an unpacked edition would leave pointing at nothing: a whale it deprecates or
- * renames, or a nicknamed matriline it takes below decision 123's rule. The catalogue task
- * asks the same question of the edition it holds (checkedInProblems), so one that fails
- * there is refused here, before it is adopted, and the build goes on with the edition it has.
+ * What the catalogue task would say against an unpacked edition: its whole validation
+ * (catalogueProblems), run on the candidate in the task's own memory, with the reference
+ * tables it checks enum labels against. Empty when the task would load it. The edition is
+ * written to a scratch register file first, as the task reads it from one.
  */
-export async function catalogueProblems(dir: string, catalogueDir?: string): Promise<string[]> {
+export async function candidateProblems(dir: string, catalogueDir?: string): Promise<string[]> {
+    const scratch = mkdtempSync(path.join(tmpdir(), 'register-check-'));
     const db = await DuckDBInstance.create(':memory:');
     const conn = await db.connect();
     try {
-        await conn.run("SET memory_limit = '512MB'; SET threads = 1");
-        await conn.run("ATTACH ':memory:' AS register");
+        await budget(conn, path.join(scratch, 'check'), CATALOGUE_MEMORY);
+        await conn.run(`ATTACH ${sqlString(path.join(scratch, 'store.duckdb'))} AS store`);
+        await loadReference(conn, 'store');
+        await conn.run(`ATTACH ${sqlString(path.join(scratch, 'register.duckdb'))} AS register`);
         await loadTables(conn, 'register', dir);
-        return await checkedInProblems(conn, catalogueDir);
+        return await catalogueProblems(conn, catalogueDir);
     } finally {
         conn.closeSync();
         db.closeSync();
+        rmSync(scratch, {recursive: true, force: true});
     }
 }
 
@@ -272,11 +279,10 @@ export async function main(): Promise<void> {
                         + `pair(s) ${held ? `edition ${held} names` : 'the held register names'}: ${pairs.join('; ')}. `
                         + 'Accept in data/maplify-unnamed.tsv, or fix the register.'));
                 }
-                // The same refusal for a release that would break a checked-in catalogue row.
-                const broken = await catalogueProblems(dir);
+                // Likewise a release the catalogue task would fail on, a checked-in row it breaks or a constraint on the generated rows.
+                const broken = await candidateProblems(dir);
                 if (broken.length > 0)
-                    throw markRefused(new Error(`register ${tag} refused: it breaks the checked-in catalogue `
-                        + `(data/catalogue/), so the catalogue task would fail on it:\n  ${broken.join('\n  ')}\n`
+                    throw markRefused(new Error(`register ${tag} refused: the catalogue task would fail on it:\n  ${broken.join('\n  ')}\n`
                         + `The build keeps ${held ? `edition ${held}` : 'the held register'}. Fix data/catalogue/, or the register.`));
                 const rows = await adopt(conn, file, dir, tag, digest);
                 say(`register ${tag}: adopted (${held ? `was ${held}` : 'no edition held before'}), ${rows} rows`);
