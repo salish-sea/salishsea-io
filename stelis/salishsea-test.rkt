@@ -17,7 +17,7 @@
 (define (ingest-inputs-of task) (task-inputs (hash-ref (graph-tasks salishsea-ingest-graph) task)))
 
 ;; --- two graphs from one list (st-mxr.1.2) --------------------------------------
-;; The four ingests are a graph and a project of their own, so their builds can have a
+;; The six ingests are a graph and a project of their own, so their builds can have a
 ;; state dir of their own; everything from the snapshot on is the other. Every authored
 ;; task is in exactly one.
 (check-equal? (sort (hash-keys (graph-tasks salishsea-ingest-graph)) symbol<?)
@@ -227,6 +227,27 @@
 (check-equal? (ingest-inputs-of 'ingest-inaturalist) '(register.mappings)
               "ingest-inaturalist reads its upstream and the register's mappings, nothing else")
 (check-equal? (task-kind (hash-ref (graph-tasks salishsea-ingest-graph) 'ingest-inaturalist)) 'boundary)
+;; Orcasound's detections (salishsea decision 122, salish-fizm.1): two more ingests, each a
+;; boundary of its own reading only its upstream, whose mirrors derive-occurrences reads to write
+;; build.detections beside build.occurrences. In this first version nothing publishes from the
+;; detections: no other task reads a detection mirror or build.detections, so no file the site
+;; serves can change with one.
+(for ([ingest (in-list '(ingest-orcasound-detections ingest-orcahello))])
+  (check-equal? (ingest-inputs-of ingest) '() (format "~a reads only its upstream" ingest))
+  (check-equal? (task-kind (hash-ref (graph-tasks salishsea-ingest-graph) ingest)) 'boundary))
+(check-eq? (producer-of salishsea-ingest-graph 'orcasound_detections.detections) 'ingest-orcasound-detections)
+(check-eq? (producer-of salishsea-ingest-graph 'orcasound_detections.feeds) 'ingest-orcasound-detections)
+(check-eq? (producer-of salishsea-ingest-graph 'orcahello.detections) 'ingest-orcahello)
+(for ([mirrored (in-list '(orcasound_detections.detections orcasound_detections.feeds orcahello.detections))])
+  (check-not-false (memq mirrored (inputs-of 'derive-occurrences)) (format "the derivation reads ~a" mirrored))
+  (check-not-false (memq mirrored handed-over-relations) (format "~a crosses from the ingest graph" mirrored))
+  (for ([(name t) (in-hash (graph-tasks salishsea-graph))] #:unless (eq? name 'derive-occurrences))
+    (check-false (memq mirrored (task-inputs t)) (format "~a does not read ~a" name mirrored))))
+(check-not-false (memq 'build.detections (outputs-of 'derive-occurrences)))
+(for ([(name t) (in-hash (graph-tasks salishsea-graph))])
+  (check-false (memq 'build.detections (task-inputs t)) (format "~a does not read build.detections" name)))
+;; and the day files still wait on the derivation that writes it, no more
+(check-not-false (memq 'derive-occurrences ordered))
 (check-false (hash-ref (graph-tasks salishsea-graph) 'maplify-overlap #f)
              "the Maplify overlap report retired with Postgres's Maplify ingest (salish-xv35.9)")
 (check-false (memq 'maplify.sightings (inputs-of 'maplify-names))
