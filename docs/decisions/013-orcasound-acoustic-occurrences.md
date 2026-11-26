@@ -1,6 +1,6 @@
 # 013 — Orcasound acoustic occurrences come from curated biophony bouts, identified by upstream tags
 
-**Status:** accepted; built (bouts on the map since 2026-09-25); amended by [122](122-an-orcasound-detection-is-unconfirmed-until-a-bout-or-a-moderator-confirms-it.md) (2026-11-25: a detection becomes an occurrence beside the bouts) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); the older tags classified 2026-09-25 (#1016); #1015, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
+**Status:** accepted; built (bouts on the map since 2026-09-25); 2026-11-25 (see [Amendment](#amendment-2026-11-25) — whale detections are occurrences too, by [122](122-orcasound-detections-are-occurrences-that-people-confirm-or-reject.md)) · upstream adopted tag `kind`, `iri` and `certainty` (orcasite#1042, #1014); the older tags classified 2026-09-25 (#1016); #1015, #1017 and orcahello#597 still open · **Decided:** 2026-07-06 ·
 **Amended:** 2026-08-14 (see [Amendment](#amendment-2026-08-14) — identifications arrive
 typed, and the upstream ask is a schema change) · 2026-09-20 (see
 [Amendment](#amendment-2026-09-20) — orcasite is read directly, with no mirror schema; an
@@ -35,9 +35,11 @@ to ~3–6/mo; the moderator (largely Scott Veirs) is on sabbatical.
 
 ## Decision
 
+*Since 2026-11-25 an Orcasound detection marked as a whale is an occurrence too, beside the bouts; [122](122-orcasound-detections-are-occurrences-that-people-confirm-or-reject.md) says when it is confirmed. This section is about bouts.*
+
 An Orcasound **acoustic detection** occurrence is **one `biophony` bout** — located at the
 bout's `feed` coordinates, spanning the bout's `start_time`/`end_time`. `anthrophony` and
-`geophony` bouts are excluded (not organisms), ~~as are raw detections and candidates~~. *Since 2026-11-25 a detection marked as a whale is an occurrence too; candidates are still excluded. See the [Amendment](#amendment-2026-11-25).*
+`geophony` bouts are excluded (not organisms), as are ~~raw detections and~~ candidates.
 
 A bout's **species / ecotype / pod / matriline** is read from **structured upstream tags**, not
 parsed from the free-text `name`.
@@ -68,10 +70,7 @@ Ingest runs within the imperative-shell architecture (decision
 - ~~**Ingest raw detections.** The finest grain and the only one with an instant timestamp, but
   unvetted: any anonymous button-press, plus vessel/other categories that aren't organisms.
   Putting those on a public map asserts animal presence we can't stand behind. Curated-but-
-  coarse (bouts) beats precise-but-noisy.~~ *Reversed 2026-11-25 by
-  [122](122-an-orcasound-detection-is-unconfirmed-until-a-bout-or-a-moderator-confirms-it.md):
-  a whale detection is taken, but shown as unconfirmed until a bout, an OrcaHello moderator or a
-  curator confirms it, and withheld once rejected. See the [Amendment](#amendment-2026-11-25).*
+  coarse (bouts) beats precise-but-noisy.~~ *Reversed 2026-11-25: see the [Amendment](#amendment-2026-11-25).*
 - **Ingest candidates.** The auto-clustered middle tier — still unvetted, and GraphQL-only,
   which would pull us off the documented JSON:API for a lower-quality signal.
 - **Parse the bout `name` downstream.** Feasible (the killer-whale names are informative and
@@ -349,9 +348,4 @@ Register-side contracts this record now depends on:
 
 ## Amendment (2026-11-25)
 
-A detection that a listener or OrcaHello marks as a whale is now an occurrence beside the bouts
-([122](122-an-orcasound-detection-is-unconfirmed-until-a-bout-or-a-moderator-confirms-it.md)).
-The objection above was that a raw detection is unvetted. Decision 122 answers it by showing a
-detection as unconfirmed until a whale bout, an OrcaHello moderator's yes or a curator confirms
-it, and by withholding one that a moderator or curator rejects. Detections of vessels or other
-sounds, and orcasite's candidates, are still excluded. Bouts stay as they are.
+A detection marked as a whale is now an occurrence beside the bouts ([122](122-orcasound-detections-are-occurrences-that-people-confirm-or-reject.md)). The objection above, that a raw detection is unvetted, is answered there: a detection is shown as unconfirmed until someone confirms it, and withheld once rejected. Detections of vessels or other sounds, and orcasite's candidates, are still excluded, and bouts are unchanged.
