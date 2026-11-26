@@ -83,6 +83,44 @@ describe("the Southern Residents' rows are generated from the register (decision
     });
 });
 
+describe("a checked-in matriline's matriarch is the register's (salish-o3gx)", () => {
+    test('read from register.matriarchs, and none when she is not a checked-in individual', async () => {
+        const dir = await mkdtemp(path.join(tmpdir(), 'catalogue-'));
+        const snapshot = path.join(dir, 'snapshot.duckdb');
+        try {
+            const conn = await (await DuckDBInstance.create(':memory:')).connect();
+            await conn.run(`ATTACH '${snapshot}' AS store`);
+            await loadReference(conn, 'store');
+            await mkdir(path.dirname(registerFile(snapshot)), {recursive: true});
+            await conn.run(`ATTACH '${registerFile(snapshot)}' AS register`);
+            // T007s is named for T007 (SSA:0010008); T010s for a whale our files don't hold.
+            await registerFixture(conn, {matriarchs: [['SSA:0002001', 'SSA:0010008'], ['SSA:0002002', 'SSA:0019999']]});
+            await conn.run(`CREATE TABLE register.vitals (entity_id VARCHAR, sex VARCHAR, born VARCHAR)`);
+            await conn.run(`CREATE TABLE register.current_status (entity_id VARCHAR, status VARCHAR)`);
+            await conn.run(`CREATE TABLE register.status_dates (entity_id VARCHAR, effective VARCHAR)`);
+            const individuals = CATALOGUE['individuals']!;
+            await conn.run(`INSERT INTO register.vitals SELECT entity_id, NULL, NULL
+                FROM ${readTsv(path.join(CATALOGUE_DIR, individuals.file), individuals.columns)}`);
+            await conn.run(`INSERT INTO register.current_status SELECT entity_id, 'alive' FROM register.vitals`);
+            conn.closeSync();
+            await loadCatalogue(snapshot, CATALOGUE_DIR);
+            const read = await (await DuckDBInstance.create(snapshot)).connect();
+            try {
+                const groups = (await read.runAndReadAll(`SELECT doc FROM "snapshot"."snapshot".social_groups`)).getRows()
+                    .map(([doc]) => JSON.parse(String(doc)) as Record<string, unknown>);
+                const anchor = (designation: string) => groups.find(g => g['designation'] === designation)!['anchor_individual_id'];
+                expect(anchor('T007')).toBe(9);
+                expect(anchor('T010')).toBeNull();
+                expect(anchor('Biggs')).toBeNull();
+            } finally {
+                read.closeSync();
+            }
+        } finally {
+            await rm(dir, {recursive: true, force: true});
+        }
+    });
+});
+
 describe('the catalogue as documents (decision 064)', () => {
     test("keys in jsonb's order: shorter first, then bytewise", () => {
         expect(Object.keys(jsonbOrdered({entity_id: 1, id: 2, kind: 3, code: 4, name: 5})))

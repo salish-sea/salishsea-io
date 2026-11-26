@@ -21,7 +21,10 @@
  *     twin, register.fold);
  *   - an individual's sex, birth years and life status, which are the register's (decision
  *     051): Postgres copied them on every register load (refresh_individual_vitals), and
- *     here they come from the release the build holds (register.vitals, register.current_status).
+ *     here they come from the release the build holds (register.vitals, register.current_status);
+ *   - the matriarch a matriline is named for, `social_groups.anchor_individual_id`, also the
+ *     register's since it began naming her (register.matriarchs, animals ADR-0024): it was a
+ *     column of social-groups.tsv until every one agreed with the register's (salish-o3gx).
  *
  * The rights policy's withheld columns are not in the files at all (D-21): the Bigg's
  * sheet's notes on an individual and the story behind a nickname. They stay in Postgres
@@ -60,7 +63,7 @@ export const CATALOGUE: Readonly<Record<string, {file: string, columns: readonly
         ['id', 'INTEGER'], ['name', 'VARCHAR'], ['kind', 'VARCHAR'], ['url', 'VARCHAR']]},
     social_groups: {file: 'social-groups.tsv', columns: [
         ['id', 'INTEGER'], ['kind', 'VARCHAR'], ['designation', 'VARCHAR'], ['entity_id', 'VARCHAR'],
-        ['anchor_individual_id', 'INTEGER'], ['notes', 'VARCHAR']]},
+        ['notes', 'VARCHAR']]},
     nicknames: {file: 'nicknames.tsv', columns: [
         ['id', 'INTEGER'], ['individual_id', 'INTEGER'], ['social_group_id', 'INTEGER'], ['name', 'VARCHAR'],
         ['status', 'VARCHAR'], ['namer_id', 'INTEGER'], ['named_year', 'INTEGER'], ['theme', 'VARCHAR']]},
@@ -190,6 +193,25 @@ export async function generatedRows(conn: DuckDBConnection): Promise<void> {
         WHERE e.kind = 'group' AND r.rank IN (${GENERATED_GROUP_KINDS.map(k => `'${k}'`).join(', ')})`);
 }
 
+/**
+ * The checked-in rows of a table, in its columns: the file's, and for the social groups the
+ * matriarch each matriline is named for, from the register. A matriarch who is not one of
+ * the checked-in individuals gives none, so a row never points at one that isn't there.
+ */
+function checkedIn(table: string, read: (table: string) => string): string {
+    if (table !== 'social_groups') return `SELECT * FROM ${read(table)}`;
+    return `SELECT g.id, g.kind, g.designation, g.entity_id, i.id AS anchor_individual_id, g.notes
+        FROM ${read('social_groups')} g
+        LEFT JOIN register.matriarchs m ON m.matriline_id = g.entity_id
+        LEFT JOIN ${read('individuals')} i ON i.entity_id = m.matriarch_id`;
+}
+
+/** Every table's columns: its file's, and any the checked-in rows take from the register (checkedIn). */
+const COLUMNS: Readonly<Record<string, readonly string[]>> = {
+    ...Object.fromEntries(Object.entries(CATALOGUE).map(([table, {columns}]) => [table, columns.map(([name]) => name)])),
+    social_groups: ['id', 'kind', 'designation', 'entity_id', 'anchor_individual_id', 'notes'],
+};
+
 /** The tables some of whose rows are generated (generatedRows), each with its temp view. */
 const GENERATED: Readonly<Record<string, string>> = {
     individuals: 'gen_individuals', designations: 'gen_designations', social_groups: 'gen_social_groups',
@@ -306,9 +328,9 @@ export async function loadCatalogue(snapshot: string, dir = CATALOGUE_DIR): Prom
         await generatedRows(conn);
         for (const [table, {file, columns}] of Object.entries(CATALOGUE)) {
             assertHeader(path.join(dir, file), columns);
-            const list = columns.map(([name]) => name).join(', ');
+            const list = COLUMNS[table]!.join(', ');
             const generated = GENERATED[table] ? ` UNION ALL SELECT ${list} FROM ${GENERATED[table]}` : '';
-            await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list} FROM ${read(table)}${generated}`);
+            await conn.run(`CREATE TEMP VIEW cat_${table} AS SELECT ${list} FROM (${checkedIn(table, read)})${generated}`);
         }
         const broken = await violations(conn);
         if (broken.length) throw new Error(`the catalogue breaks what Postgres enforced:\n  ${broken.join('\n  ')}`);
