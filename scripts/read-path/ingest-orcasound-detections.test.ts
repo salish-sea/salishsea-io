@@ -67,6 +67,21 @@ describe('the mirror of orcasite\'s detections', () => {
         expect(rowsIn(file)).toHaveLength(6);
     });
 
+    test('a window that stops at until reconciles only before it, and covers only the days wholly before it', () => {
+        const file = path.join(dir, 'until.sqlite');
+        reconcileWindow(file, window, response);
+        // the fetch stopped at 16:00, so the two detections after it weren't asked for
+        const cut = {...window, until: '2026-11-24T16:00:00.000000Z'};
+        const before = response.detections.filter(d => d.timestamp < cut.until);
+        expect(before).toHaveLength(3);
+        expect(reconcileWindow(file, cut, {detections: before, feeds: response.feeds})).toMatchObject({deleted: 0});
+        expect(rowsIn(file)).toHaveLength(5);
+        const fresh = path.join(dir, 'until-fresh.sqlite');
+        reconcileWindow(fresh, {start: '2026-11-23', end: '2026-11-24', until: cut.until}, {detections: before, feeds: response.feeds});
+        const db = new DatabaseSync(fresh, {readOnly: true});
+        try { expect(db.prepare('SELECT day FROM covered_days ORDER BY day').all()).toEqual([{day: '2026-11-23'}]); } finally { db.close(); }
+    });
+
     test('a scheduled run refuses to delete more than a tenth of what the window holds, and writes nothing', () => {
         const file = path.join(dir, 'floor.sqlite');
         const many = Array.from({length: 30}, (_, i) => ({...response.detections[0]!, id: `det_many${String(i).padStart(2, '0')}`}));

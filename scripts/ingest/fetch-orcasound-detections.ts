@@ -26,15 +26,42 @@ const MAX_PAGES = 100;
 /**
  * Sparse fieldsets keep a page to what the core reads, and leave out `description` and
  * `source_ip`. Sorted by time and then id, so the offsets are stable between pages.
- * `page[limit]` is orcasite's maximum. The window is whole UTC days, `end` included.
+ * `page[limit]` is orcasite's maximum. The window is whole UTC days, `end` included, unless it
+ * ends at `until`, an instant before then.
  */
-export function windowUrl(window: IngestWindow): string {
+export function windowUrl(window: DetectionsWindowBounds): string {
     return `${ORIGIN}/api/json/detections?page[limit]=250&page[count]=true&sort=timestamp,id` +
         `&filter[timestamp][greater_than_or_equal]=${window.start}T00:00:00Z` +
-        `&filter[timestamp][less_than]=${addDays(window.end, 1)}T00:00:00Z` +
+        `&filter[timestamp][less_than]=${windowEnd(window)}` +
         '&include=feed' +
         '&fields[detection]=timestamp,source,category,listener_count,visible,idempotency_key,feed_id,candidate_id' +
         '&fields[feed]=name,location_point';
+}
+
+/**
+ * A window that may stop short of its last day. The scheduled window ends a quarter of an
+ * hour before the run (cutoff): a detection arriving while the window is paged would change
+ * orcasite's count and fail the run (on 2026-11-27, 5 runs of 493 failed so), and nothing
+ * arrives with a time that far back. The next run's window covers what this one stopped short of.
+ */
+export type DetectionsWindowBounds = IngestWindow & {
+    /** An exclusive end before `end`'s next midnight, as cutoff writes it; none means that midnight. */
+    readonly until?: string;
+};
+
+/**
+ * The window's exclusive end, as text that compares against the mirror's timestamps as times
+ * do: orcasite writes them with six decimals and a Z, and so does this.
+ */
+export function windowEnd(window: DetectionsWindowBounds): string {
+    return window.until ?? `${addDays(window.end, 1)}T00:00:00.000000Z`;
+}
+
+/** `minutes` before `now`, to the minute, in orcasite's form: the scheduled window's `until`. */
+export function cutoff(now: Date, minutes = 15): string {
+    const at = new Date(now.getTime() - minutes * 60_000);
+    at.setUTCSeconds(0, 0);
+    return at.toISOString().replace(/\.\d{3}Z$/, '.000000Z');
 }
 
 export type DetectionsWindow = {
@@ -49,7 +76,7 @@ export type DetectionsWindow = {
  * leave orcasite's origin and refusing more than MAX_PAGES, and refuses an answer whose
  * distinct detections are not the count orcasite gave.
  */
-export async function fetchDetectionsWindow(window: IngestWindow, log: Logger): Promise<DetectionsWindow> {
+export async function fetchDetectionsWindow(window: DetectionsWindowBounds, log: Logger): Promise<DetectionsWindow> {
     const byId = new Map<string, NormalizedDetection>();
     const feeds = new Map<string, NormalizedFeed>();
     let total: number | null = null;

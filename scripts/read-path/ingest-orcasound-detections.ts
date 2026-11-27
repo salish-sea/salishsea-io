@@ -33,9 +33,9 @@ import { writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
-import { fetchDetectionsWindow, type DetectionsWindow } from '../ingest/fetch-orcasound-detections.ts';
+import { cutoff, fetchDetectionsWindow, windowEnd, type DetectionsWindow, type DetectionsWindowBounds } from '../ingest/fetch-orcasound-detections.ts';
 import { reconcile, type NormalizedDetection } from '../ingest/orcasound-detections.ts';
-import { defaultWindow, type IngestWindow } from '../ingest/window.ts';
+import { defaultWindow } from '../ingest/window.ts';
 import { boundaryReceipt, recordedRun } from './ingest-runs.ts';
 import { DELETE_FLOOR_MIN_STORED, DELETE_FLOOR_SHARE, type ReconcileOptions, type ReconcileResult } from './ingest-maplify.ts';
 import { addDays, antiEntropyWindow, curatorWindow, firstCoveredDay, windowDays } from './windows.ts';
@@ -89,13 +89,13 @@ export function mirrorRow(d: NormalizedDetection): MirrorRow {
 
 /**
  * Reconcile one window's complete fetch into the mirror at `path`, creating it if need be.
- * The window is timestamp ∈ [start, end + 1 day): orcasite's timestamps are ISO text, which
- * compare against a bare date as they do as times. `changed` counts detections added,
+ * The window is timestamp ∈ [start, windowEnd): the next midnight after `end`, or `until`
+ * when the window stops short of it. Only days wholly inside are recorded as covered. `changed` counts detections added,
  * altered or deleted; a window that changed nothing and whose days were already covered
  * writes nothing. Feeds are upserted, never deleted.
  */
 export function reconcileWindow(
-    path: string, window: IngestWindow, response: Pick<DetectionsWindow, 'detections' | 'feeds'>,
+    path: string, window: DetectionsWindowBounds, response: Pick<DetectionsWindow, 'detections' | 'feeds'>,
     {maxDeleteShare = DELETE_FLOOR_SHARE}: ReconcileOptions = {},
 ): ReconcileResult {
     mkdirSync(dirname(path), {recursive: true});
@@ -107,7 +107,7 @@ export function reconcileWindow(
         db.exec(SCHEMA);
         const stored = new Map(
             (db.prepare('SELECT * FROM detections WHERE timestamp >= ? AND timestamp < ?')
-                .all(window.start, addDays(window.end, 1)) as unknown as MirrorRow[])
+                .all(window.start, windowEnd(window)) as unknown as MirrorRow[])
                 .map(r => [r.id, JSON.stringify(COLUMNS.map(c => r[c]))]));
         const plan = reconcile(response.detections, [...stored.keys()]);
         if (maxDeleteShare !== null && stored.size >= DELETE_FLOOR_MIN_STORED
@@ -117,9 +117,10 @@ export function reconcileWindow(
                 + `a scheduled run may delete; nothing written. If orcasite really removed them, a backfill of the window applies it.`);
         const rows = plan.upsert.map(mirrorRow);
         const altered = rows.filter(r => stored.get(r.id) !== JSON.stringify(COLUMNS.map(c => r[c])));
-        const days = windowDays(window);
-        const covered = (db.prepare(`SELECT count(*) AS n FROM covered_days WHERE day >= ? AND day <= ?`)
-            .get(window.start, window.end) as {n: number}).n;
+        // a day the window stops short of isn't covered: its later hours weren't asked for
+        const days = windowDays(window).filter(day => `${addDays(day, 1)}T00:00:00.000000Z` <= windowEnd(window));
+        const covered = days.length === 0 ? 0 : (db.prepare(`SELECT count(*) AS n FROM covered_days WHERE day >= ? AND day <= ?`)
+            .get(days[0]!, days[days.length - 1]!) as {n: number}).n;
         const knownFeeds = new Map((db.prepare('SELECT * FROM feeds').all() as {id: string, name: string, lon: number, lat: number}[])
             .map(f => [f.id, JSON.stringify([f.name, f.lon, f.lat])]));
         const newFeeds = response.feeds.filter(f => knownFeeds.get(f.id) !== JSON.stringify([f.name, f.lon, f.lat]));
@@ -154,7 +155,7 @@ export async function main(): Promise<void> {
         console.error('usage: ingest-orcasound-detections.ts <orcasound-detections.sqlite> [<start> <end>]');
         process.exit(2);
     }
-    let windows: IngestWindow[];
+    let windows: DetectionsWindowBounds[];
     if (start !== undefined && end !== undefined) {
         const window = curatorWindow(start, end);
         if (!window) {
@@ -164,7 +165,7 @@ export async function main(): Promise<void> {
         windows = [window];
     } else {
         const now = new Date();
-        const regular = defaultWindow(now, REGULAR_DAYS);
+        const regular: DetectionsWindowBounds = {...defaultWindow(now, REGULAR_DAYS), until: cutoff(now)};
         const earliest = firstCoveredDay(path);
         const older = earliest === null ? null : antiEntropyWindow(earliest, regular.start, now, Math.random());
         windows = older ? [regular, older] : [regular];

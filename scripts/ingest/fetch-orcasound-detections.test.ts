@@ -4,7 +4,7 @@
  * which is what makes a delete safe (decision 011). Against a stubbed fetch.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchDetectionsWindow, windowUrl } from './fetch-orcasound-detections.ts';
+import { cutoff, fetchDetectionsWindow, windowEnd, windowUrl } from './fetch-orcasound-detections.ts';
 
 const noopLog = () => {};
 const window = { start: '2026-11-24', end: '2026-11-25' };
@@ -36,13 +36,32 @@ describe('windowUrl', () => {
     it('asks for whole UTC days, counted, sorted so offsets are stable, with sparse fieldsets', () => {
         const url = windowUrl(window);
         expect(url).toContain('filter[timestamp][greater_than_or_equal]=2026-11-24T00:00:00Z');
-        expect(url).toContain('filter[timestamp][less_than]=2026-11-26T00:00:00Z');
+        expect(url).toContain('filter[timestamp][less_than]=2026-11-26T00:00:00.000000Z');
         expect(url).toContain('page[count]=true');
         expect(url).toContain('sort=timestamp,id');
         expect(url).toContain('page[limit]=250');
         // never the listener's free text or the address it came from
         expect(url).not.toMatch(/description|source_ip/);
         expect(url).toMatch(/fields\[detection\]=[^&]*idempotency_key/);
+    });
+
+    it('stops at until when the window has one', () => {
+        const url = windowUrl({...window, until: '2026-11-25T17:11:00.000000Z'});
+        expect(url).toContain('filter[timestamp][less_than]=2026-11-25T17:11:00.000000Z');
+    });
+});
+
+describe('cutoff', () => {
+    it('is a quarter of an hour before now, to the minute, written as orcasite writes times', () => {
+        expect(cutoff(new Date('2026-11-27T17:26:16.181Z'))).toBe('2026-11-27T17:11:00.000000Z');
+        expect(cutoff(new Date('2026-11-28T00:05:00Z'))).toBe('2026-11-27T23:50:00.000000Z');
+    });
+
+    it('compares against the mirror\'s timestamps as orcasite\'s less_than does: the instant itself is outside', () => {
+        const end = windowEnd({start: '2026-11-24', end: '2026-11-24', until: '2026-11-24T08:11:00.000000Z'});
+        expect('2026-11-24T08:10:59.999999Z' < end).toBe(true);
+        expect('2026-11-24T08:11:00.000000Z' < end).toBe(false);
+        expect(windowEnd({start: '2026-11-24', end: '2026-11-24'})).toBe('2026-11-25T00:00:00.000000Z');
     });
 });
 
